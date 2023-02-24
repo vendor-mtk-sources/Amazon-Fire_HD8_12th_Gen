@@ -1,0 +1,26 @@
+config MTK_SCHEDULER
+	tristate "mtk scheduler feature"
+	help
+	  Choose this option to enable mtk schduler feature.
+	  These features include
+		non-linear DVFS control
+		EAS enhancement
+
+config MTK_OPP_CAP_INFO
+	bool "Per-opp capacity information"
+	depends on MTK_SCHEDULER
+	help
+	  Choose this option to provide per-opp capacity API.
+	  Scheduler module will get per-opp capacity from sram and
+	  initialize opp capacity table. This config is used by
+	  performance tuning framework and non-linear frequency control.
+
+config NONLINEAR_FREQ_CTL
+	bool "Non-linear frequency control"
+	depends on MTK_OPP_CAP_INFO
+	help
+	  Choose this option to enable non-linear frequency control.
+	  This will change per-opp capacity from linear scaled by
+	  freuqency to evaluated by benchmark. This makes capacity
+	  more accurate and will let scheduler/schedutil use more
+	  suitable frequency.

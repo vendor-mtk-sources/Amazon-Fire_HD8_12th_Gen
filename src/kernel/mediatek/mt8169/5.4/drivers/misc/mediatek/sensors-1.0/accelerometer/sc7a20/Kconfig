@@ -1,0 +1,7 @@
+config MTK_SC7A20
+	tristate "SC7A20 for MediaTek package"
+	help
+	  It support different accelerometer sensor.
+	  If this option is set,
+	  it will support
+	  SC7A20 Accelerometer.

@@ -1,0 +1,29 @@
+config MTK_LDVT_SAMPLE
+	bool "MediaTek sampel driver for LDVT"
+	depends on MTK_LDVT_SUPPORT
+	default n
+	help
+	  This enables MediaTek sample driver for ldvt.DVT means
+	  IC Design Validation Test, so LDVT is LinuxOS test
+	  environment to verify HW modules, such as USB,Ethernet,
+	  etc.
+
+config MTK_LDVT_DISP
+	bool "MediaTek Disp driver for LDVT"
+	depends on MTK_LDVT_SUPPORT
+	default n
+	help
+	  MediaTek sample driver for ldvt.DVT means
+	  Design Validation Test, so LDVT is LinuxOS test
+	  environment to verify HW modules
+	  disp driver for ldvt
+
+config MTK_LDVT_UDVT
+	bool "MediaTek UDVT driver for LDVT"
+	depends on MTK_LDVT_SUPPORT
+	default n
+	help
+	  MediaTek sample driver for ldvt.DVT means
+	  Design Validation Test, so LDVT is LinuxOS test
+	  environment to verify HW modules
+	  UDVT driver for ldvt

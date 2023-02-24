@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig ION
+	bool "Ion Memory Manager"
+	depends on HAS_DMA && MMU
+	select GENERIC_ALLOCATOR
+	select DMA_SHARED_BUFFER
+	select MTK_ION_DEBUG
+	help
+	  Choose this option to enable the ION Memory Manager,
+	  used by Android to efficiently allocate buffers
+	  from userspace that can be shared between drivers.
+	  If you're not using Android its probably safe to
+	  say N here.
+
+config MTK_ION_DEBUG
+	bool "Ion heap debug information"
+	depends on ION
+	help
+	  Choose this option to open Mediatek debug information,
+	  the information could support all ION heaps. It can
+	  show the buffer information about current ion heap.
+
+source "drivers/staging/android/ion/heaps/Kconfig"

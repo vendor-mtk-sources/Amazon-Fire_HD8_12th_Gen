@@ -1,0 +1,3 @@
+
+config MTK_LTR578
+	tristate "LTR578 for MediaTek alsps package"

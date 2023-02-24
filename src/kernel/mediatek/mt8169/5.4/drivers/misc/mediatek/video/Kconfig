@@ -1,0 +1,9 @@
+config MTKFB
+	tristate "A pseudo framebuffer driver"
+	select FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is temporary framebuffer driver to run Android on FPGA to home
+	  screen and should be removed after the real driver has been ready.

@@ -1,0 +1,16 @@
+config MTK_HIFIXDSP_SUPPORT
+	tristate "Specify Platform Support HIFIxDSP"
+	help
+	  HIFIxDSP is a MediaTek in-house DSP which can do
+	  different audio process from IPI interface.
+	  Set Y to enable this feature.
+	  If unsure,
+	  Set N to stay with legacy feature.
+
+config MTK_HIFIXDSP_VERSION
+	string "MediaTek HIFIXDSP Version"
+	help
+	  For DSP kernel driver config. This config can
+	  indicate DSP version. This feature need to work
+	  with MTK_HIFIXDSP_SUPPORT.
+

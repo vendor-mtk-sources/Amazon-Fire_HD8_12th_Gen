@@ -1,0 +1,40 @@
+config MTK_THERMAL
+	tristate "Temperature sensor driver for mediatek SoCs"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on NVMEM || NVMEM=n
+	depends on RESET_CONTROLLER
+	default y
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Mediatek SoCs
+
+config MTK_SOC_THERMAL_LVTS
+        tristate "LVTS (Low voltage thermal sensor) driver for Mediatek SoCs"
+        depends on HAS_IOMEM
+        depends on NVMEM
+        depends on RESET_TI_SYSCON
+        help
+          Enable this option if you want to get SoC temperature
+          information for Mediatek platforms. This driver
+          configures LVTS thermal controllers to collect temperatures
+          via Analog Serial Interface(ASIF).
+
+config MTK_PMIC_THERMAL
+	tristate "PMIC thermal sensor driver for Mediatek SoCs"
+	depends on MT635X_EFUSE || MT6359_EFUSE
+	depends on MEDIATEK_MT635X_AUXADC
+	help
+	  Enable this option if you want to get PMIC temperature
+	  for Mediatek platforms.
+	  This driver reads the voltage value from PMIC AUXADC channels,
+	  and converts raw value to PMIC temperature via PMIC efuse data.
+
+config MTK_CHARGER_THERMAL
+        tristate "Mediatek charger cooling framework"
+        depends on MTK_CHARGER
+        help
+          Enable this option to turn on charger throttle mechanisms
+          for Mediatek platforms.
+          This option depends on MTK_CHARGER which is
+          MTK charger driver.

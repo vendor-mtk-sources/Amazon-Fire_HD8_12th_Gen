@@ -1,0 +1,26 @@
+config MTK_IN_HOUSE_TEE_SUPPORT
+	bool "Enable MTK In House TEE Support"
+	help
+	  This option decides if the support MTK in-house TEE
+	  (Trusted Execution Environment)
+	  Set to yes if MTK TEE is supported.
+	  If you are not sure if it is supported, set it to no.
+
+config MTK_DRM_KEY_MNG_SUPPORT
+	bool "Enable MTK DRM Key Manager Support"
+	depends on (MTK_IN_HOUSE_TEE_SUPPORT) || (TRUSTONIC_TEE_SUPPORT) || (TRUSTY)
+	help
+	  This enable MTK DRM Key Manager Support.
+	  depending on MTK In-House TEE Support
+	  or Trustonic TEE Support
+
+config MTEE_CMA_SECURE_MEMORY
+	tristate "MTEE using CMA for secure memory allocation"
+	default y
+	depends on OF
+	depends on CMA
+	depends on (MTK_IN_HOUSE_TEE_SUPPORT) || (TEE)
+	depends on (WFD_DYNAMIC_SEC_BUF)
+	help
+	  Enable allocation secure memory from CMA to free the memory
+	  back to Linux CMA when secure memory buffer was not used.

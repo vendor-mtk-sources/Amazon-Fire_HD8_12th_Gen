@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# OP-TEE Trusted Execution Environment Configuration
+config OPTEE
+	tristate "OP-TEE"
+	depends on HAVE_ARM_SMCCC
+	depends on MMU
+	help
+	  This implements the OP-TEE Trusted Execution Environment (TEE)
+	  driver.
+
+config OPTEE_SHM_NUM_PRIV_PAGES
+	int "Private Shared Memory Pages"
+	default 1
+	depends on OPTEE
+	help
+	  This sets the number of private shared memory pages to be
+	  used by OP-TEE TEE driver.
+
+config OPTEE_REE_CONSOLE
+	tristate "OP-TEE REE Console"
+	default y
+	depends on OPTEE
+	help
+	  This implements the mechanism to accept log from OP-TEE RPC.
+
+config OPTEE_REE_CLK_CTRL
+	tristate "OP-TEE REE Clock Control"
+	default y
+	depends on OPTEE && OF
+	help
+	  This implements the mechanism to control clock by request from
+	  OP-TEE RPC.

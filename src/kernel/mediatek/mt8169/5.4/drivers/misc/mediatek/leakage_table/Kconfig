@@ -1,0 +1,17 @@
+config MTK_STATIC_POWER
+	tristate "MediaTek GPU Voltage Scaling Module"
+	help
+	  This driver provides leakage efuse dump for
+	  multiple domain. Those leakage (mw) are
+	  calculated by Efuse value and ATE Voltage.
+	  Select "y" if you want to enable this features.
+	  Select "n" if unsure.
+
+config MT8169_STATIC_POWER
+	tristate "MediaTek MT8169 Voltage Scaling Module"
+	help
+	  This driver provides leakage efuse dump for
+	  multiple domain. Those leakage (mw) are
+	  calculated by Efuse value and ATE Voltage.
+	  Select "y" if you want to enable this features.
+	  Select "n" if unsure.

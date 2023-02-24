@@ -1,0 +1,17 @@
+#
+# Amazon Devices
+#
+
+config ACENNA
+	tristate "ACENNA"
+	default n
+	help
+	  This option enables support the ACENNA accelerator.
+	  If you are not sure, say N here.
+
+config NNA_MT8169
+	bool "NNA for MT8169"
+	depends on ARCH_MEDIATEK && ACENNA
+	help
+	  Select this when ACENNA run in MT8169 chip.
+	  If you are not sure, say N here.

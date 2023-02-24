@@ -1,0 +1,48 @@
+config DRM_MEDIATEK_V2
+	bool "Version 2 of DRM Support for Mediatek SoCs"
+	help
+	  Choose this option if you have a phone Mediatek
+	  SoCs. The module will be called mediatek-drm v2
+	  This driver provides kernel mode setting and
+	  buffer management to userspace.
+
+config DRM_MTK_DISABLE_AEE_LAYER
+	bool "Disable AEE Layer for the customer who don't want to produce AEE"
+	help
+	  Disable AEE Layer if you do not want to produce AEE.
+	  Default Mediatek SoCs will produce AEE when exception occurred.
+	  If this value is y, will not produce AEE.
+	  If this value is n, will produce AEE.
+	  If you do not produce AEE, please set it to Y in xxx_defconfig.
+
+config MTK_AAL_SUPPORT
+	bool "Support MTK ambient-light adaptive luma (AAL)"
+	help
+	  Decide whether to support ambient-light adaptive luma and
+	  display visual enhancement.
+	  This feature requires the cowork of AAL user-space algorithm process.
+
+config MTK_DRE30_SUPPORT
+	bool "Support DRE 30"
+	help
+	  Decide whether to support ambient-light adaptive luma and
+	  display visual enhancement ver.3.
+	  This feature requires the cowork of AAL user-space algorithm process.
+
+config LK_FASTLOGO
+	tristate "enable lk Support for Mediatek SoCs"
+	help
+	  enable lk Support for Mediatek SoCs.
+
+config DRM_MEDIATEK_YOCTO
+	bool "support some features only for yocto"
+	help
+	  support some features only for yocto.
+	  these features will not appear in android.
+	  these features includes:
+	  modifier list, alpha property, color encoding,crc,etc...
+
+config MTK_ROUND_CORNER_SUPPORT
+	tristate "enable round corner support for Mediatek SoCs"
+	help
+	  enable round corner support for Mediatek SoCs.

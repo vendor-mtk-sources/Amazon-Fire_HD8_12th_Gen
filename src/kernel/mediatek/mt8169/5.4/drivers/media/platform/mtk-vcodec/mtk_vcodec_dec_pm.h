@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: Tiffany Lin <tiffany.lin@mediatek.com>
+ */
+
+#ifndef _MTK_VCODEC_DEC_PM_H_
+#define _MTK_VCODEC_DEC_PM_H_
+
+#include "mtk_vcodec_drv.h"
+
+void mtk_dec_init_ctx_pm(struct mtk_vcodec_ctx *ctx);
+int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *dev);
+void mtk_vcodec_release_dec_pm(struct mtk_vcodec_dev *dev);
+
+void mtk_vcodec_dec_pw_on(struct mtk_vcodec_pm *pm, int hw_id);
+void mtk_vcodec_dec_pw_off(struct mtk_vcodec_pm *pm, int hw_id);
+void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm, int hw_id);
+void mtk_vcodec_dec_clock_off(struct mtk_vcodec_pm *pm, int hw_id);
+
+#endif /* _MTK_VCODEC_DEC_PM_H_ */

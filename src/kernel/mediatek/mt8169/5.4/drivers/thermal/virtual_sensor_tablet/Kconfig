@@ -1,0 +1,26 @@
+config VIRTUAL_SENSOR_THERMAL
+	tristate "VIRTUAL_SENSOR thermal management"
+	help
+	  Adds VIRTUAL_SENSOR thermal management implementation according to the thermal
+	  management framework. A thermal zone with several trip points will be
+	  created. Cooling devices can be bound to the trip points to cool this
+	  thermal zone if trip points reached.
+
+config THERMAL_SHUTDOWN_LAST_KMESG
+	bool "THERMAL_SHUTDOWN_LAST_KMESG save the last kmsg"
+	depends on VIRTUAL_SENSOR_THERMAL
+	help
+	  Save the last kmsg when thermal shuts down the system.
+
+config THERMAL_DEBOUNCE
+	bool "THERMAL_DEBOUNCE design"
+	depends on VIRTUAL_SENSOR_THERMAL
+	help
+	  Drop the invalid temperature change value.
+
+config THERMAL_FOD
+	bool "Thermal mechanism to detect foreign object"
+	depends on VIRTUAL_SENSOR_THERMAL
+	help
+	  Whenever wireless charging is working, it can be used to detect foreign objects
+	  correctly and avoid causing the device too overheat.

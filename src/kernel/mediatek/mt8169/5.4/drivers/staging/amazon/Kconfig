@@ -1,0 +1,49 @@
+menu "Amazon"
+
+config AMAZON
+	bool "Amazon Drivers"
+	default N
+	---help---
+	  Enable support for various drivers needed on the Amazon Fire OS platform
+
+source "drivers/staging/amazon/dspframework/Kconfig"
+
+if AMAZON
+
+config USER_BUILD
+	bool "USER_BUILD"
+	default n
+	help
+	  Indicate if user build
+
+config AMAZON_SIGN_OF_LIFE
+	tristate "Amazon Sign of Life"
+	help
+	  enable the life cycle metrics to log device boot and shutdown information
+
+config AMAZON_POWEROFF_LOG
+	bool "Long press key power off log"
+	default N
+	help
+	  enable Long press key power off log
+
+config AMAZON_INPUT_KEYCOMBO
+	tristate "Amazon key combo"
+	depends on INPUT
+	select INPUT_KEYCOMBO
+	help
+	  Say Y here if you want to panic kernel / power off when some keys are pressed;
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amzn_keycombo.
+
+config AMAZON_DRV_TEST
+	tristate "Amazon common BSP driver test module"
+	depends on AMAZON_METRICS_LOG && AMAZON_SIGN_OF_LIFE && IDME
+	default n
+	help
+	  Enable Amazon Common BSP test module
+
+endif #if AMAZON
+
+endmenu
