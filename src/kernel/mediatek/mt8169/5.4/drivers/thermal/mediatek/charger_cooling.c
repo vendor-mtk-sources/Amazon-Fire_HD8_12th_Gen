@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include "charger_cooling.h"
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 #define CHARGER_METRICS_STR_LEN 128
 #define PREFIX "thermalcharger:def"
@@ -73,7 +73,7 @@ static int charger_cooling_set_cur_state(struct thermal_cooling_device *cdev, un
 {
 	struct charger_cooling_device *charger_cdev = cdev->devdata;
 	int ret;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	char buf[CHARGER_METRICS_STR_LEN];
 	const struct amazon_logger_ops *amazon_logger = amazon_logger_ops_get();
 #endif
@@ -85,6 +85,15 @@ static int charger_cooling_set_cur_state(struct thermal_cooling_device *cdev, un
 	if (charger_cdev->target_state == state)
 		return 0;
 
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	if (amazon_logger && amazon_logger->minerva_metrics_log) {
+		amazon_logger->minerva_metrics_log(buf, CHARGER_METRICS_STR_LEN,
+				"%s:%s:100:%s,cooler_name=chargermonitor_%s_cooler;SY,"
+				"target_state=%ld;IN:us-east-1",
+				METRICS_THERMAL_GROUP_ID, METRICS_THERMAL_COOLER_SCHEMA_ID,
+				PREDEFINED_ESSENTIAL_KEY, cdev->type, state);
+	}
+#endif
 #if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	snprintf(buf, CHARGER_METRICS_STR_LEN,
 		"%s:chargermonitor_%s_cooler_state=%ld;CT;1:NR",

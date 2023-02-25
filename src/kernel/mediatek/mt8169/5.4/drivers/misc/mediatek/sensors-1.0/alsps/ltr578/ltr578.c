@@ -121,9 +121,15 @@ struct ltr578_priv {
 	ulong enable; /*enable mask*/
 	ulong pending_intr; /*pending interrupt*/
 
-	u32 lux_threshold;	/* The ALS calibration threshold for Diag . Default Value 400. */
+	u32 lux_threshold; /*the ALS calibration threshold for Diag . Default Value 400*/
 	u32 als_cal_high_reading;
 	u32 als_cal_low_reading;
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	u32 als_high_raw_alsval_reading; /*the raw value of visible light in ALS channel at high light intensity*/
+	u32 als_high_raw_clearval_reading; /*the raw value of Invisible light in ALS channel at high light intensity*/
+	u32 als_low_raw_alsval_reading; /*the raw value of visible light in ALS channel at low light intensity*/
+	u32 als_low_raw_clearval_reading; /*the raw value of Invisible light in ALS channel at low light intensity*/
+#endif
 };
 
 static uint32_t als_cal;
@@ -480,6 +486,41 @@ out:
 	final_lux_val = luxdata_int;
 	return res;
 }
+
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+static int ltr578_als_read_rawdata(struct i2c_client *client, int data[])
+{
+	int alsval = 0, clearval = 0;
+	int res = 0;
+	int result[2] = { 0 };
+	u8 buf[3] = { 0 };
+
+	res = ltr578_master_recv(client, LTR578_ALS_DATA_0, buf, 0x03);
+	if (res < 0) {
+		result[0] = result[1] = 0;
+		APS_ERR("i2c error: %d\n", res);
+		goto out;
+	}
+
+	alsval = (buf[2] * 256 * 256) + (buf[1] * 256) + buf[0];
+	result[0] = alsval;
+	res = ltr578_master_recv(client, LTR578_CLEAR_DATA_0, buf, 0x03);
+	if (res < 0) {
+		result[0] = result[1] = 0;
+		APS_ERR("i2c error: %d\n", res);
+		goto out;
+	}
+
+	clearval = (buf[2] * 256 * 256) + (buf[1] * 256) + buf[0];
+	result[1] = clearval;
+
+out:
+	data[0] = result[0];
+	data[1] = result[1];
+	return res;
+}
+#endif
+
 /*-------------------------------attribute file for debugging----------------------------------*/
 
 /******************************************************************************
@@ -559,15 +600,89 @@ static inline int32_t ltr578_als_get_data_avg(int sSampleNo, bool is_calibration
 }
 
 /*----------------------------------------------------------------------------*/
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+static inline int32_t *ltr578_als_get_rawdata_avg(int sSampleNo, int32_t *data)
+{
+	int32_t DataCount = 0;
+	int32_t sAveAlsData[2] = { 0 };
+	int alsval = 0, clearval = 0;
+	int als_reading[2] = { 0 };
+
+	struct ltr578_priv *obj = NULL;
+
+	if (!ltr578_obj) {
+		APS_ERR("ltr578_obj is null!!\n");
+		return NULL;
+	}
+	obj = ltr578_obj;
+
+	ltr578_als_read_rawdata(obj->client, als_reading);
+	APS_LOG("[%s]:Ignore first value,first alsval value :%d, first clear value :%d\n",
+		__func__, als_reading[0], als_reading[1]);
+
+	while (DataCount < sSampleNo) {
+		msleep(100);
+		ltr578_als_read_rawdata(obj->client, als_reading);
+		alsval = als_reading[0];
+		clearval = als_reading[1];
+
+		if (atomic_read(&ltr578_obj->trace) & ALS_TRC_INFO) {
+			APS_LOG("%s: als_alsval_reading = %d\n", __func__, alsval);
+			APS_LOG("%s: clearval_reading = %d\n", __func__, clearval);
+		}
+
+		if (alsval < 0 || alsval >= max_uint16 || clearval < 0 || clearval >= max_uint16) {
+			APS_ERR("ltr578 read rawdata error, alsval :%d, clearval :%d\n", alsval, clearval);
+		}
+
+		sAveAlsData[0] += alsval;
+		sAveAlsData[1] += clearval;
+		DataCount++;
+	}
+	sAveAlsData[0] = ((sAveAlsData[0] * 10) + 5 * sSampleNo) / 10 / sSampleNo;
+	sAveAlsData[1] = ((sAveAlsData[1] * 10) + 5 * sSampleNo) / 10 / sSampleNo;
+
+	if (sAveAlsData[0] < 0 || sAveAlsData[0] >= max_uint16) {
+		APS_ERR("ltr578 read Avealsval_rawdata error, Avealsval :%d\n", sAveAlsData[0]);
+		sAveAlsData[0] = 0;
+	} else if (sAveAlsData[1] < 0 || sAveAlsData[1] >= max_uint16){
+		APS_ERR("ltr578 read Aveclearval_rawdata error, Aveclearval :%d\n", sAveAlsData[1]);
+		sAveAlsData[1] = 0;
+	} else {
+		APS_LOG("%s: read sAveAlsval and sAveClearval normal\n", __func__);
+	}
+
+	if (atomic_read(&ltr578_obj->trace) & ALS_TRC_INFO) {
+			APS_LOG("%s: sAveAlsval = %d\n", __func__, sAveAlsData[0]);
+			APS_LOG("%s: sAveClearval = %d\n", __func__, sAveAlsData[1]);
+	}
+	data[0] = sAveAlsData[0];
+	data[1] = sAveAlsData[1];
+	return data;
+}
+#endif
+
+/*----------------------------------------------------------------------------*/
 static bool als_store_cali_in_file(const char *filename,
 						 unsigned int value, unsigned int value_low)
 {
 	struct file *cali_file;
+	int i;
+	char *dest = NULL;
 	mm_segment_t fs;
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	char w_buf[LTR_DATA_BUF_NUM * sizeof(unsigned int) * 6 + 1] = { 0 };
+	char r_buf[LTR_DATA_BUF_NUM * sizeof(unsigned int) * 6 + 1] = { 0 };
+	unsigned int high_raw_alsvalue = 0, high_raw_clearvalue = 0, low_raw_alsvalue = 0, low_raw_clearvalue = 0;
+	high_raw_alsvalue = ltr578_obj->als_high_raw_alsval_reading;
+	high_raw_clearvalue = ltr578_obj->als_high_raw_clearval_reading;
+	low_raw_alsvalue = ltr578_obj->als_low_raw_alsval_reading;
+	low_raw_clearvalue = ltr578_obj->als_low_raw_clearval_reading;
+#else
 	char w_buf[LTR_DATA_BUF_NUM * sizeof(unsigned int) * 2 + 1] = { 0 };
 	char r_buf[LTR_DATA_BUF_NUM * sizeof(unsigned int) * 2 + 1] = { 0 };
-	int i;
-	char *dest = w_buf;
+#endif
+	dest = w_buf;
 
 	APS_LOG("%s enter", __func__);
 	cali_file = filp_open(filename, O_CREAT | O_RDWR, 0777);
@@ -587,9 +702,36 @@ static bool als_store_cali_in_file(const char *filename,
 			sprintf(dest, "%02X", value_low & 0x000000FF);
 			dest += 2;
 			sprintf(dest, "%02X", (value_low >> 8) & 0x000000FF);
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+			dest += 2;
+			sprintf(dest, "%02X", high_raw_clearvalue & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", (high_raw_clearvalue >> 8) & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", high_raw_alsvalue & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", (high_raw_alsvalue >> 8) & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", low_raw_clearvalue & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", (low_raw_clearvalue >> 8) & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", low_raw_alsvalue & 0x000000FF);
+			dest += 2;
+			sprintf(dest, "%02X", (low_raw_alsvalue >> 8) & 0x000000FF);
+#endif
 		}
 
 		APS_LOG("w_buf: %s \n", w_buf);
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+		kernel_write(cali_file, (void *)w_buf,
+				LTR_DATA_BUF_NUM * sizeof(unsigned int) * 6 + 1, &cali_file->f_pos);
+		cali_file->f_pos = 0x00;
+		kernel_read(cali_file, (void *)r_buf,
+				LTR_DATA_BUF_NUM * sizeof(unsigned int) * 6 + 1, &cali_file->f_pos);
+
+		for (i = 0; i < LTR_DATA_BUF_NUM * sizeof(unsigned int) * 6 + 1; i++) {
+#else
 		kernel_write(cali_file, (void *)w_buf,
 				LTR_DATA_BUF_NUM * sizeof(unsigned int) * 2 + 1, &cali_file->f_pos);
 		cali_file->f_pos = 0x00;
@@ -597,6 +739,7 @@ static bool als_store_cali_in_file(const char *filename,
 				LTR_DATA_BUF_NUM * sizeof(unsigned int) * 2 + 1, &cali_file->f_pos);
 
 		for (i = 0; i < LTR_DATA_BUF_NUM * sizeof(unsigned int) * 2 + 1; i++) {
+#endif
 			if (r_buf[i] != w_buf[i]) {
 				set_fs(fs);
 				filp_close(cali_file, NULL);
@@ -741,6 +884,10 @@ static int ltr578_dump_reg(void)
 static ssize_t ltr578_show_cali_Light_High(struct device_driver *ddri, char *buf)
 {
 	int32_t als_reading = 0;
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	int32_t raw_alsvalue_reading = 0, raw_clearvalue_reading = 0;
+	int32_t rawdata[2] = { 0 };
+#endif
 	bool result = false;
 
 	APS_LOG("%s:[#53][LTR]Start Cali light...\n", __func__);
@@ -754,8 +901,22 @@ static ssize_t ltr578_show_cali_Light_High(struct device_driver *ddri, char *buf
 	msleep(150);
 	als_reading = ltr578_als_get_data_avg(10, true);
 
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	ltr578_als_get_rawdata_avg(10, rawdata);
+	raw_alsvalue_reading = rawdata[0];
+	raw_clearvalue_reading = rawdata[1];
+
+	if ((als_reading > 0 && raw_alsvalue_reading > 0 && raw_clearvalue_reading > 0) &&
+			(als_reading <= max_uint16 && raw_alsvalue_reading <= max_uint16 && raw_clearvalue_reading <= max_uint16)) {
+		ltr578_obj->als_cal_high_reading = als_reading;
+		ltr578_obj->als_high_raw_alsval_reading = raw_alsvalue_reading;
+		ltr578_obj->als_high_raw_clearval_reading = raw_clearvalue_reading;
+		APS_LOG("als_cal_high_reading:%d, als_high_raw_alsval_reading:%d, als_high_raw_clearval_reading:%d\n",
+			ltr578_obj->als_cal_high_reading, ltr578_obj->als_high_raw_alsval_reading, ltr578_obj->als_high_raw_clearval_reading);
+#else
 	if ((als_reading > 0) && (als_reading <= max_uint16)) {
 		ltr578_obj->als_cal_high_reading = als_reading;
+#endif
 
 		result = als_store_cali_in_file(ALS_CAL_FILE,
 						ltr578_obj->als_cal_high_reading, ltr578_obj->als_cal_low_reading);
@@ -774,6 +935,10 @@ static ssize_t ltr578_show_cali_Light_High(struct device_driver *ddri, char *buf
 static ssize_t ltr578_show_cali_Light_Low(struct device_driver *ddri, char *buf)
 {
 	int32_t als_reading = 0;
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	int32_t raw_alsvalue_reading = 0, raw_clearvalue_reading = 0;
+	int32_t rawdata[2] = { 0 };
+#endif
 	bool result = false;
 
 	APS_LOG("%s:[#53][LTR]Start Cali light...\n", __func__);
@@ -787,9 +952,23 @@ static ssize_t ltr578_show_cali_Light_Low(struct device_driver *ddri, char *buf)
 	msleep(150);
 
 	als_reading = ltr578_als_get_data_avg(20, true);
+#if IS_ENABLED(CONFIG_ALS_RAW_SUPPORT)
+	ltr578_als_get_rawdata_avg(20, rawdata);
+	raw_alsvalue_reading = rawdata[0];
+	raw_clearvalue_reading = rawdata[1];
 
+	if ((als_reading > 0 && raw_alsvalue_reading > 0 && raw_clearvalue_reading > 0) &&
+			(als_reading <= max_uint16 && raw_alsvalue_reading <= max_uint16 && raw_clearvalue_reading <= max_uint16)) {
+		ltr578_obj->als_cal_low_reading = als_reading;
+		ltr578_obj->als_low_raw_alsval_reading = raw_alsvalue_reading;
+		ltr578_obj->als_low_raw_clearval_reading = raw_clearvalue_reading;
+		APS_LOG("als_cal_low_reading:%d, als_low_raw_alsval_reading:%d, als_low_raw_clearval_reading:%d.\n",
+			ltr578_obj->als_cal_low_reading, ltr578_obj->als_low_raw_alsval_reading, ltr578_obj->als_low_raw_clearval_reading);
+#else
 	if ((als_reading > 0) && (als_reading <= max_uint16)) {
 		ltr578_obj->als_cal_low_reading = als_reading;
+#endif
+
 		/* low value can't larger than half of high */
 		if (ltr578_obj->als_cal_low_reading > ltr578_obj->als_cal_high_reading / 2) {
 			result = false;

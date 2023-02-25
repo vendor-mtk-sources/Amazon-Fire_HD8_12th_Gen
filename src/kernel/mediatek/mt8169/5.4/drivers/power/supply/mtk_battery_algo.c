@@ -16,7 +16,7 @@ int set_kernel_soc(struct mtk_battery *gm, int _soc)
 
 void set_fg_bat_tmp_c_gap(int tmp)
 {
-	battery_set_property(BAT_PROP_UISOC, tmp);
+	battery_set_property(BAT_PROP_TEMP_TH_GAP, tmp);
 }
 
 void set_fg_time(struct mtk_battery *gm, int _time)
@@ -1251,6 +1251,7 @@ void fgr_dod_init(struct mtk_battery *gm)
 	fgr_update_c_dod(gm);
 	algo->ui_soc = algo->ui_d0_soc;
 	fgr_set_soc_by_vc_mode(gm);
+	algo->dod_init_done = true;
 
 	bm_err("[%s]fg_c_d0[%d %d %d] d0_sel[%d] c_soc[%d %d] ui[%d %d] soc[%d] con0[ui %d %d]\n",
 		__func__,
@@ -1397,17 +1398,19 @@ void fgr_int_end_flow(struct mtk_battery *gm, unsigned int intr_no)
 	vbat = gauge_get_int_property(GAUGE_PROP_BATTERY_VOLTAGE);
 	curr_temp = force_get_tbat(gm, true);
 
-	set_kernel_soc(gm, algo->soc);
-	battery_set_property(BAT_PROP_UISOC, algo->ui_soc);
-	gauge_set_property(GAUGE_PROP_RTC_UI_SOC,
-		(algo->ui_soc + 50) / 100);
+	if (algo->dod_init_done) {
+		set_kernel_soc(gm, algo->soc);
+		battery_set_property(BAT_PROP_UISOC, algo->ui_soc);
+		gauge_set_property(GAUGE_PROP_RTC_UI_SOC,
+			(algo->ui_soc + 50) / 100);
 
-	if (algo->soc <= 100)
-		gauge_set_property(GAUGE_PROP_CON0_SOC, 100);
-	else if (algo->soc >= 10000)
-		gauge_set_property(GAUGE_PROP_CON0_SOC, 10000);
-	else
-		gauge_set_property(GAUGE_PROP_CON0_SOC, algo->soc);
+		if (algo->soc <= 100)
+			gauge_set_property(GAUGE_PROP_CON0_SOC, 100);
+		else if (algo->soc >= 10000)
+			gauge_set_property(GAUGE_PROP_CON0_SOC, 10000);
+		else
+			gauge_set_property(GAUGE_PROP_CON0_SOC, algo->soc);
+	}
 
 	fgr_error_calibration2(gm, intr_no);
 	bm_debug("[%s][%s]soc:%d, c_soc:%d ui_soc:%d VBAT %d T:[%d C:%d] car:%d\n",

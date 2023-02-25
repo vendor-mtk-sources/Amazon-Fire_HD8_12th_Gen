@@ -46,3 +46,8 @@ config MTK_ROUND_CORNER_SUPPORT
 	tristate "enable round corner support for Mediatek SoCs"
 	help
 	  enable round corner support for Mediatek SoCs.
+
+config TP_TO_LCD_ESD_CHECK
+	bool "tp report esd error to lcd"
+	help
+	  TP firmware detects esd error, and report it to LCD driver.

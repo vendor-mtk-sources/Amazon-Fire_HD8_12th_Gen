@@ -108,7 +108,7 @@
 			};
 			imp {
 				channel = <AUXADC_IMP>;
-				resistance-ratio = <7 2>;
+				resistance-ratio = <3 1>;
 				avg-num = <128>;
 			};
 			imix_r {
@@ -150,12 +150,14 @@
 					<&pmic_auxadc AUXADC_BATADC>,
 					<&pmic_auxadc AUXADC_VBIF>,
 					<&pmic_auxadc AUXADC_IMP>,
-					<&pmic_auxadc AUXADC_IMIX_R>;
+					<&pmic_auxadc AUXADC_IMIX_R>,
+					<&auxadc 1>;
 			io-channel-names = "pmic_battery_temp",
 					"pmic_battery_voltage",
 					"pmic_bif_voltage",
 					"pmic_ptim_voltage",
-					"pmic_ptim_r";
+					"pmic_ptim_r",
+					"pmic_battery_id";
 			nvmem-cells = <&fg_init>, <&fg_soc>;
 			nvmem-cell-names = "initialization", "state-of-charge";
 		};
@@ -271,7 +273,6 @@
 			};
 
 			mt6358_vrf12_reg: ldo_vrf12 {
-				compatible = "regulator-fixed";
 				regulator-name = "vrf12";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
@@ -279,7 +280,6 @@
 			};
 
 			mt6358_vio18_reg: ldo_vio18 {
-				compatible = "regulator-fixed";
 				regulator-name = "vio18";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -442,7 +442,6 @@
 			};
 
 			mt6358_vrf18_reg: ldo_vrf18 {
-				compatible = "regulator-fixed";
 				regulator-name = "vrf18";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;

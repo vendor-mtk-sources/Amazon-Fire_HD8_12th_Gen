@@ -680,13 +680,28 @@ static int mtk_real_power(struct devfreq *df, u32 *power,
 			      unsigned long freqHz, unsigned long voltage_mv)
 {
 	int opp_idx;
+	u64 total_time;
+	u32 gpu_power;
+	struct kbase_device *kbdev;
+	struct kbasep_pm_metrics diff;
 
 	(void)(voltage_mv);
-	(void)(df);
 
+	kbdev = dev_get_drvdata(&df->dev);
+	if (!kbdev)
+		return -ENODEV;
+	kbase_pm_get_dvfs_metrics(kbdev, &kbdev->last_devfreq_metrics, &diff);
+
+	/* time_busy / total_time cannot be >1, so assigning the 64-bit
+	 * result of div_u64 to *power cannot overflow.
+	 */
+	total_time = diff.time_busy + (u64) diff.time_idle;
 	opp_idx = mt_gpufreq_get_opp_idx_by_freq(freqHz / 1000);
-	if (power) /* return power */
-		*power = mt_gpufreq_get_power_by_idx(opp_idx);
+	if (power) {
+		gpu_power = mt_gpufreq_get_power_by_idx(opp_idx);
+		*power = div_u64(gpu_power * (u64) diff.time_busy,
+			 max(total_time, 1ull));
+	}
 
 	/* assume success */
 	return 0;

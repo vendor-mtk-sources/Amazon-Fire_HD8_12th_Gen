@@ -517,7 +517,7 @@ static struct SV_LOG_STR gSvLog[MFB_IRQ_TYPE_AMOUNT];
 	struct SV_LOG_STR *pSrc = &gSvLog[irq];\
 	char *ptr;\
 	unsigned int i;\
-	signed int ppb = 0;\
+	unsigned int ppb = 0;\
 	signed int logT = 0;\
 	if (ppb_in > 1) {\
 		ppb = 1;\
@@ -529,7 +529,7 @@ static struct SV_LOG_STR gSvLog[MFB_IRQ_TYPE_AMOUNT];
 	} else {\
 		logT = logT_in;\
 	} \
-	if (ppb < 0 || ppb >= LOG_PPNUM) { \
+	if (ppb >= LOG_PPNUM) { \
 		LOG_ERR("ppb is out of range"); \
 		break; \
 	} \
@@ -3203,6 +3203,9 @@ static long MFB_ioctl(struct file *pFile, unsigned int Cmd, unsigned long Param)
 				goto EXIT;
 			}
 
+			/* Protect the Multi Process */
+			mutex_lock(&gMfbMsfMutex);
+
 			if (copy_from_user(
 				g_MsfEnqueReq_Struct.MsfFrameConfig,
 				(void *)mfb_MsfReq.m_pMsfConfig,
@@ -3211,13 +3214,11 @@ static long MFB_ioctl(struct file *pFile, unsigned int Cmd, unsigned long Param)
 				LOG_ERR(
 					"copy MSFConfig from request is fail!!\n");
 				Ret = -EFAULT;
+				mutex_unlock(&gMfbMsfMutex);
 				goto EXIT;
 			}
 			msf_get_reqs(mfb_MsfReq.exec, &reqs);
 			pUserInfo->reqs = reqs;
-
-			/* Protect the Multi Process */
-			mutex_lock(&gMfbMsfMutex);
 
 			spin_lock_irqsave(
 				&(MFBInfo.SpinLockIrq[MFB_IRQ_TYPE_INT_MSF_ST]),

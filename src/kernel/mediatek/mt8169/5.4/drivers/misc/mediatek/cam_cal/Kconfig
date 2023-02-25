@@ -9,3 +9,9 @@ config MTK_CAM_CAL
 	  on ProjectConfig. The kernel space for EEPROM will be build.
 	  It may be like as "/dev/camera_eeprom0".
 	  User space code will control the driver by open and read this one.
+
+config abc123_SENSOR_OTP
+	bool "abc123 sensor otp"
+	default n
+	help
+	  This module is used to read calibration data with abc123 project control.

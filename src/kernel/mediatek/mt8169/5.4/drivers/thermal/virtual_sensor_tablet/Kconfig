@@ -24,3 +24,10 @@ config THERMAL_FOD
 	help
 	  Whenever wireless charging is working, it can be used to detect foreign objects
 	  correctly and avoid causing the device too overheat.
+
+config CPU_MULTIPLE_CLUSTERS
+	bool "Thermal cpu separate large and little core"
+	depends on VIRTUAL_SENSOR_THERMAL
+	help
+	  When trigger cpu frequency limiting, large and little cores use
+	  different ways to limit frequency.

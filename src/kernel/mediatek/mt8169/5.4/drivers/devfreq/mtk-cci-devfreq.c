@@ -30,6 +30,8 @@ struct cci_devfreq {
 	int intermediate_voltage;
 	int old_vproc;
 	unsigned long old_freq;
+	/* Avoid race condition for regulators between notify and policy */
+	struct mutex reg_lock;
 	struct notifier_block opp_nb;
 	bool need_voltage_tracking;
 };
@@ -180,6 +182,9 @@ static int mtk_cci_devfreq_target(struct device *dev, unsigned long *freq,
 
 	opp_rate = *freq;
 	opp = devfreq_recommended_opp(dev, &opp_rate, 1);
+
+	mutex_lock(&cci_info->reg_lock);
+
 	vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
@@ -195,7 +200,7 @@ static int mtk_cci_devfreq_target(struct device *dev, unsigned long *freq,
 		if (ret) {
 			pr_err("cci: failed to scale up voltage\n");
 			mtk_cci_set_voltage(cci_info, old_vproc);
-			return ret;
+			goto out_unlock;
 		}
 	}
 
@@ -204,14 +209,14 @@ static int mtk_cci_devfreq_target(struct device *dev, unsigned long *freq,
 	if (ret) {
 		pr_err("cci: failed to re-parent cci clock!\n");
 		WARN_ON(1);
-		return ret;
+		goto out_unlock;
 	}
 
 	ret = clk_set_rate(ccipll, *freq);
 	if (ret) {
 		pr_err("cci: failed to set ccipll rate: %d\n", ret);
 		mtk_cci_set_voltage(cci_info, old_vproc);
-		return ret;
+		goto out_unlock;
 	}
 
 	/* Set parent of CPU clock back to the original PLL. */
@@ -219,7 +224,7 @@ static int mtk_cci_devfreq_target(struct device *dev, unsigned long *freq,
 	if (ret) {
 		pr_err("cci: failed to re-parent cci clock!\n");
 		WARN_ON(1);
-		return ret;
+		goto out_unlock;
 	}
 
 	/*
@@ -231,13 +236,18 @@ static int mtk_cci_devfreq_target(struct device *dev, unsigned long *freq,
 		if (ret) {
 			pr_err("cci: failed to scale down voltage\n");
 			clk_set_rate(cci_info->cci_clk, cci_info->old_freq);
-			return ret;
+			goto out_unlock;
 		}
 	}
 
 	cci_info->old_freq = *freq;
 
+	mutex_unlock(&cci_info->reg_lock);
 	return 0;
+
+out_unlock:
+	mutex_unlock(&cci_info->reg_lock);
+	return ret;
 }
 
 static int cci_devfreq_opp_notifier(struct notifier_block *nb,
@@ -251,10 +261,12 @@ static int cci_devfreq_opp_notifier(struct notifier_block *nb,
 	if (event == OPP_EVENT_ADJUST_VOLTAGE) {
 		freq = dev_pm_opp_get_freq(opp);
 		/* current opp item is changed */
+		mutex_lock(&cci_info->reg_lock);
 		if (freq == cci_info->old_freq) {
 			volt = dev_pm_opp_get_voltage(opp);
 			mtk_cci_set_voltage(cci_info, volt);
 		}
+		mutex_unlock(&cci_info->reg_lock);
 	}
 
 	return 0;
@@ -319,6 +331,7 @@ static int mtk_cci_devfreq_probe(struct platform_device *pdev)
 
 	opp_nb = &cci_info->opp_nb;
 	cci_info->cci_dev = cci_dev;
+	mutex_init(&cci_info->reg_lock);
 
 	cci_info->cci_clk = devm_clk_get(cci_dev, "cci");
 	ret = PTR_ERR_OR_ZERO(cci_info->cci_clk);

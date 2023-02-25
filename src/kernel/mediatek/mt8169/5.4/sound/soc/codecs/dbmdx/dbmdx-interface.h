@@ -113,7 +113,9 @@
 #define DBMDX_VT_NET_NAME			"voice_net.bin"
 #endif
 
-#ifndef DBMDX_ALEXA_VT_AMODEL_NAME
+#if IS_ENABLED(CONFIG_SND_SOC_MT8169_abc123)
+#define DBMDX_ALEXA_VT_AMODEL_NAME		"dsp_abc123_model.bin"
+#else
 #define DBMDX_ALEXA_VT_AMODEL_NAME		"dsp_raspite_model.bin"
 #endif
 

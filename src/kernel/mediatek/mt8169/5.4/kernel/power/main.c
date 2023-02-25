@@ -17,14 +17,24 @@
 #include <linux/syscalls.h>
 #include <linux/pm_runtime.h>
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 #endif
 
 #include "power.h"
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 struct delayed_work suspend_work;
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define power_minerva_vitals(operation, key, value)	\
+	amazon_logger->minerva_counter_to_vitals(ANDROID_LOG_INFO,		\
+		VITALS_POWER_GROUP_ID, VITALS_POWER_STATUS_SCHEMA_ID,	\
+		"suspend_event",				\
+		"suspend_event", operation, key,		\
+		value, "count", NULL, VITALS_NORMAL,		\
+		NULL, NULL);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
@@ -906,10 +916,12 @@ static int __init pm_start_workqueue(void)
 	return pm_wq ? 0 : -ENOMEM;
 }
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 static void suspend_metrics_work(struct work_struct *work)
 {
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	char buf[400] = {0};
+#endif
 	struct delayed_work *dw = container_of(work, struct delayed_work, work);
 	int last_dev, last_errno, last_step;
 	const struct amazon_logger_ops *amazon_logger = amazon_logger_ops_get();
@@ -920,6 +932,7 @@ static void suspend_metrics_work(struct work_struct *work)
 	last_errno %= REC_FAILED_NUM;
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	snprintf(buf, sizeof(buf), "suspend_event:def:success=%d;CT;1,fail=%d;CT;1,"
 		"failed_freeze=%d;CT;1,failed_prepare=%d;CT;1,failed_suspend=%d;CT;1,"
 		"failed_suspend_late=%d;CT;1,failed_suspend_noirq=%d;CT;1,"
@@ -935,6 +948,24 @@ static void suspend_metrics_work(struct work_struct *work)
 	if(amazon_logger && amazon_logger->log_to_metrics){
 		amazon_logger->log_to_metrics(ANDROID_LOG_INFO, "SuspendEvent", buf);
 	}
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	power_minerva_vitals("stats", "success", suspend_stats.success);
+	power_minerva_vitals("stats", "fail", suspend_stats.fail);
+	power_minerva_vitals("stats", "failed_freeze", suspend_stats.failed_freeze);
+	power_minerva_vitals("stats", "failed_prepare", suspend_stats.failed_prepare);
+	power_minerva_vitals("stats", "failed_suspend", suspend_stats.failed_suspend);
+	power_minerva_vitals("stats", "failed_suspend_late", suspend_stats.failed_suspend_late);
+	power_minerva_vitals("stats", "failed_suspend_noirq", suspend_stats.failed_suspend_noirq);
+	power_minerva_vitals("stats", "failed_resume", suspend_stats.failed_resume);
+	power_minerva_vitals("stats", "failed_resume_early", suspend_stats.failed_resume_early);
+	power_minerva_vitals("stats", "failed_resume_noirq", suspend_stats.failed_resume_noirq);
+	power_minerva_vitals("stats", "last_failed_errno", suspend_stats.errno[last_errno]);
+	power_minerva_vitals("stats", "last_failed_step", suspend_stats.failed_steps[last_step]);
+	power_minerva_vitals("last_failed", suspend_stats.failed_devs[last_dev], 1);
+#endif
+
 	schedule_delayed_work(dw, 12*3600*HZ);
 }
 #endif
@@ -955,7 +986,7 @@ static int __init pm_init(void)
 		return error;
 	pm_print_times_init();
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) ||IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	INIT_DELAYED_WORK(&suspend_work, suspend_metrics_work);
 	schedule_delayed_work(&suspend_work, 3600*HZ);
 #endif

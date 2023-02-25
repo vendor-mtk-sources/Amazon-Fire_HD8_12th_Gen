@@ -255,6 +255,10 @@
 #define HI251_SENSOR_ID                         0x0084
 #define HI191MIPI_SENSOR_ID                     0x0191
 #define HIVICF_SENSOR_ID                        0x0081
+#define HI556_TUNG_LCE_R_SENSOR_ID              0x0558
+#define HI556_TUNG_LCE_F_SENSOR_ID              0x0559
+#define HI556_TUNG_LCE3_R_SENSOR_ID             0x055B
+#define HI556_TUNG_LCE3_F_SENSOR_ID             0x055A
 /*MT*/
 #define MT9D011_SENSOR_ID                       0x1511
 #define MT9D111_SENSOR_ID                       0x1511
@@ -303,6 +307,8 @@
 #define GC0310_SENSOR_ID                        0xa310
 #define GC0313MIPI_YUV_SENSOR_ID                0xD0
 #define GC0312_SENSOR_ID                        0xb310
+#define GC05A2_TUNG_HLT_R_SENSOR_ID             0x05a2
+#define GC05A2_TUNG_TXD_F_SENSOR_ID             0x05a3
 /*SP*/
 #define SP0A19_YUV_SENSOR_ID                    0xA6
 #define SP2518_YUV_SENSOR_ID                    0x53
@@ -493,6 +499,10 @@
 #define SENSOR_DRVNAME_HI544_MIPI_RAW           "hi544_mipi_raw"
 #define SENSOR_DRVNAME_HI253_YUV                "hi253_yuv"
 #define SENSOR_DRVNAME_HI191_MIPI_RAW           "hi191_mipi_raw"
+#define SENSOR_DRVNAME_HI556_TUNG_LCE_R_MIPI_RAW    "hi556_tung_lce_r_mipi_raw"
+#define SENSOR_DRVNAME_HI556_TUNG_LCE_F_MIPI_RAW    "hi556_tung_lce_f_mipi_raw"
+#define SENSOR_DRVNAME_HI556_TUNG_LCE3_R_MIPI_RAW   "hi556_tung_lce3_r_mipi_raw"
+#define SENSOR_DRVNAME_HI556_TUNG_LCE3_F_MIPI_RAW   "hi556_tung_lce3_f_mipi_raw"
 /*MT*/
 #define SENSOR_DRVNAME_MT9P012_RAW              "mt9p012_raw"
 #define SENSOR_DRVNAME_MT9P015_RAW              "mt9p015_raw"
@@ -530,6 +540,8 @@
 #define SENSOR_DRVNAME_GC0310_YUV               "gc0310_yuv"
 #define SENSOR_DRVNAME_GC0312_YUV               "gc0312_yuv"
 #define SENSOR_DRVNAME_GC0313MIPI_YUV           "gc0313_mipi_yuv"
+#define SENSOR_DRVNAME_GC05A2_TUNG_HLT_R_MIPI_RAW     "gc05a2_tung_hlt_r_mipi_raw"
+#define SENSOR_DRVNAME_GC05A2_TUNG_TXD_F_MIPI_RAW     "gc05a2_tung_txd_f_mipi_raw"
 /*SP*/
 #define SENSOR_DRVNAME_SP0A19_YUV               "sp0a19_yuv"
 #define SENSOR_DRVNAME_SP2518_YUV               "sp2518_yuv"

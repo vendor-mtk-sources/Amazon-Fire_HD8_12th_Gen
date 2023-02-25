@@ -1,0 +1,11 @@
+#
+# HID driver configuration
+#
+
+config HID_TOUCHSCREEN_FTS
+	tristate "TP focaltech i2c hid enable"
+	depends on I2C_HID
+	default n
+	help
+	  Say Y to enable driver for Touchpanel using focaltech i2c hid
+	  If unsure, say N.

@@ -20,7 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/thermal_framework.h>
 
-#ifdef CONFIG_AMAZON_METRICS_LOG
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 
 #ifndef THERMO_METRICS_STR_LEN

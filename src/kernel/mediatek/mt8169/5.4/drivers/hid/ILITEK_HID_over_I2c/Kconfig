@@ -1,0 +1,10 @@
+#
+# HID driver configuration
+#
+config I2C_HID_ILITEK
+	tristate "TP ilitek i2c hid enable"
+	depends on I2C_HID
+	default n
+	help
+	  say Y to enable driver for Touching Screen using ilitek i2c hid.
+	  If unsure, say N.

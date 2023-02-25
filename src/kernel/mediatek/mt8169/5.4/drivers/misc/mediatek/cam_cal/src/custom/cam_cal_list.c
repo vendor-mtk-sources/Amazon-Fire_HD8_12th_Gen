@@ -28,6 +28,7 @@
 #endif
 
 #define MAX_EEPROM_SIZE_16K 0x4000
+#define MAX_EEPROM_SIZE_64K 0xFFFF
 #define IDME_OF_FRONT_CAM_OTP "/idme/front_cam_otp"
 #define IDME_OF_REAR_CAM_OTP "/idme/rear_cam_otp"
 
@@ -38,8 +39,24 @@
 #define CAM_MTK_OTP_LEN 1895
 unsigned char front_cam_otp[CAM_OTP_DATA_LEN];
 unsigned char rear_cam_otp[CAM_OTP_DATA_LEN];
+#ifdef CONFIG_abc123_SENSOR_OTP
+extern int hi556tunglcer_OTP_read(unsigned int addr, unsigned char *data, unsigned int size);
+extern int hi556tunglcef_OTP_read(unsigned int addr, unsigned char *data, unsigned int size);
+extern void gc05a2_tung_hlt_r_otp_upload_data(unsigned int addr, unsigned char *data, unsigned int size);
+extern void gc05a2_tung_txd_f_otp_upload_data(unsigned int addr, unsigned char *data, unsigned int size);
+extern int hi556tunglce3r_OTP_read(unsigned int addr, unsigned char *data, unsigned int size);
+extern int hi556tunglce3f_OTP_read(unsigned int addr, unsigned char *data, unsigned int size);
+#endif //CONFIG_abc123_SENSOR_OTP
 struct stCAM_CAL_LIST_STRUCT g_camCalList[] = {
 	/*Below is commom sensor */
+#ifdef CONFIG_abc123_SENSOR_OTP
+	{HI556_TUNG_LCE_R_SENSOR_ID, 0xA0, hi556_tung_lce_r_read_region, MAX_EEPROM_SIZE_16K},
+	{HI556_TUNG_LCE_F_SENSOR_ID, 0xA0, hi556_tung_lce_f_read_region, MAX_EEPROM_SIZE_16K},
+	{GC05A2_TUNG_HLT_R_SENSOR_ID, 0xA0, gc05a2_tung_hlt_r_read_region, MAX_EEPROM_SIZE_64K},
+	{GC05A2_TUNG_TXD_F_SENSOR_ID, 0xA0, gc05a2_tung_txd_f_read_region, MAX_EEPROM_SIZE_64K},
+	{HI556_TUNG_LCE3_R_SENSOR_ID, 0xA0, hi556_tung_lce3_r_read_region, MAX_EEPROM_SIZE_16K},
+	{HI556_TUNG_LCE3_F_SENSOR_ID, 0xA0, hi556_tung_lce3_f_read_region, MAX_EEPROM_SIZE_16K},
+#endif //CONFIG_abc123_SENSOR_OTP
 	{GC02M1_RASPITE_CXT_REAR_SENSOR_ID, 0xA0, cam_cal_rear_read_region, MAX_EEPROM_SIZE_16K},
 	{GC02M1_RASPITE_JK_REAR_SENSOR_ID, 0xA0, cam_cal_rear_read_region, MAX_EEPROM_SIZE_16K},
 	{OV02B10_RASPITE_SJC_REAR_SENSOR_ID, 0xA0, cam_cal_rear_read_region, MAX_EEPROM_SIZE_16K},
@@ -225,3 +242,51 @@ unsigned int cam_cal_rear_read_region(
 
 	return 0;
 }
+
+#ifdef CONFIG_abc123_SENSOR_OTP
+unsigned int hi556_tung_lce_r_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size)
+{
+	hi556tunglcer_OTP_read(addr,data,size);
+	return size;
+}
+
+unsigned int hi556_tung_lce_f_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size)
+{
+	hi556tunglcef_OTP_read(addr,data,size);
+	return size;
+}
+
+unsigned int gc05a2_tung_hlt_r_read_region(struct i2c_client *client, unsigned int addr,
+				unsigned char *data, unsigned int size)
+{
+	gc05a2_tung_hlt_r_otp_upload_data(addr, data, size);
+	return size;
+}
+
+unsigned int gc05a2_tung_txd_f_read_region(struct i2c_client *client, unsigned int addr,
+				unsigned char *data, unsigned int size)
+{
+	gc05a2_tung_txd_f_otp_upload_data(addr, data, size);
+	return size;
+}
+
+unsigned int hi556_tung_lce3_r_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size)
+{
+	hi556tunglce3r_OTP_read(addr,data,size);
+	return size;
+}
+
+unsigned int hi556_tung_lce3_f_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size)
+{
+	hi556tunglce3f_OTP_read(addr,data,size);
+	return size;
+}
+#endif //CONFIG_abc123_SENSOR_OTP

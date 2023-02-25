@@ -44,8 +44,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#include  <linux/metricslog.h>
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#include <linux/metricslog.h>
 #endif
 
 #include "dbmdx-interface.h"
@@ -119,11 +119,16 @@
 #define EXTERNAL_SOC_AMODEL_LOADING_ENABLED 1
 #endif
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #define DBMDX_METRIC_UPLOAD_PERIOD (60 * 60 * 12)
-#define DBMDX_METRICS_STR_LEN (128)
 DEFINE_MUTEX(metrisUploadLock);
 static struct delayed_work dbmdx_metrics_upload_work;
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define DBMDX_METRICS_LOG_MAX_SIZE (512)
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#define DBMDX_METRICS_LOG_MAX_SIZE (128)
 #endif
 
 enum dbmdx_fw_debug_mode {
@@ -1331,6 +1336,9 @@ int dbmdx_set_power_mode(
 	int ret = 0;
 	enum dbmdx_power_modes new_mode = p->power_mode;
 
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
+#endif
 	dev_dbg(p->dev, "%s: would move %s -> %s (%2.2d -> %2.2d)\n",
 			__func__,
 			dbmdx_power_mode_names[p->power_mode],
@@ -1370,7 +1378,20 @@ int dbmdx_set_power_mode(
 				ret = dbmdx_wake(p);
 			if (ret) {
 				dev_dbg(p->dev, "%s: wakeup error - WDT!",	__func__);
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+				minerva_counter_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+						VITALS_DSP_COUNTER_SCHEMA_ID, "Kernel", "Kernel",
+						"DBMD4_DSP_metrics_count", "DSP_Watchdog", 1, "count",
+						NULL, VITALS_NORMAL, NULL, NULL);
+
+				minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+						"%s:%s:100:%s,%s,%s,DSP_IRQ=false;BO,DSP_RESET=false;BO,"
+						"DSP_WDT=true;BO,DSP_DATA_PROCESS_BEGIN=false;BO:us-east-1",
+						METRICS_DSP_GROUP_ID, METRICS_DSP_VOICE_SCHEMA_ID,
+						PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY,
+						PREDEFINED_DEVICE_LANGUAGE_KEY);
+
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 				log_counter_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel", "DBMD4_DSP_metrics_count", "DSP_Watchdog", 1, "count", NULL, VITALS_NORMAL);
 
 				log_to_metrics(ANDROID_LOG_INFO, "voice_dsp", "voice_dsp:def:DSP_Watchdog=1;CT;1:NR");
@@ -8461,7 +8482,7 @@ static int dbmdx_request_and_load_fw_va_ve_mode(struct dbmdx_private *p)
 		return -EINVAL;
 	}
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	mutex_lock(&metrisUploadLock);
 #endif
 	p->lock(p);
@@ -8645,7 +8666,7 @@ out_err:
 
 out:
 	p->unlock(p);
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	mutex_unlock(&metrisUploadLock);
 #endif
 	return ret;
@@ -11089,19 +11110,19 @@ int uc_lp_model_config_dummy(struct dbmdx_private *p,
 	return 0;
 }
 
-int aca123_uc_lp_model_config(struct dbmdx_private *p,
+int melon_uc_lp_model_config(struct dbmdx_private *p,
 				struct usecase_config *uc)
 {
 	return uc_start_loaded_models_general(p, uc);
 }
 
-int aca123_uc_nr_model_config(struct dbmdx_private *p,
+int melon_uc_nr_model_config(struct dbmdx_private *p,
 				struct usecase_config *uc)
 {
 	return uc_start_loaded_models_general(p, uc);
 }
 
-int aca123_uc_production_model_config(struct dbmdx_private *p,
+int melon_uc_production_model_config(struct dbmdx_private *p,
 				struct usecase_config *uc)
 {
 	p->va_ve_flags.ignore_vt_data = 1;
@@ -13591,7 +13612,7 @@ bool adfModel_Load(u8 *modelAddress, struct firmware *wakewordModel)
 		cur_usecase = usecases_map[ind];
 		if (!cur_usecase)
 			continue;
-		if (cur_usecase->id == (DBMDX_USECASE_ID_UC_IDX_00 | DBMDX_USECASE_ID_PRJ_aca123 | DBMDX_USECASE_ID_HWREV_00))
+		if (cur_usecase->id == (DBMDX_USECASE_ID_UC_IDX_00 | DBMDX_USECASE_ID_PRJ_MELON | DBMDX_USECASE_ID_HWREV_00))
 			break;
 	}
 	if (ind >= num_usecases || !cur_usecase) {
@@ -16455,10 +16476,25 @@ static int dbmdx_perform_recovery(struct dbmdx_private *p)
 	struct vt_engine *vte;
 	struct va_flags	saved_va_flags;
 
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
+#endif
 	dev_info(p->dev, "%s: active FW - %s active_usecase_id = %x\n", __func__,
 			dbmdx_fw_type_to_str(active_fw), p->va_ve_flags.active_usecase_id);
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_counter_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+			VITALS_DSP_COUNTER_SCHEMA_ID, "Kernel", "Kernel",
+			"DBMD4_DSP_metrics_count", "DSP_Reset", 1, "count", NULL,
+			VITALS_NORMAL, NULL, NULL);
+
+	minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+			"%s:%s:100:%s,%s,%s,DSP_IRQ=false;BO,DSP_RESET=true;BO,"
+			"DSP_WDT=false;BO,DSP_DATA_PROCESS_BEGIN=false;BO:us-east-1",
+			METRICS_DSP_GROUP_ID, METRICS_DSP_VOICE_SCHEMA_ID,
+			PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY,
+			PREDEFINED_DEVICE_LANGUAGE_KEY);
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	log_counter_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel",
 			"DBMD4_DSP_metrics_count", "DSP_Reset", 1, "count", NULL, VITALS_NORMAL);
 
@@ -17741,7 +17777,7 @@ static int dbmdx_dsp_idle_set(struct snd_kcontrol *kcontrol,
 			__func__);
 			goto out;
 		}
-		cmd = (((DBMDX_USECASE_ID_UC_IDX_00 | DBMDX_USECASE_ID_PRJ_aca123 | DBMDX_USECASE_ID_HWREV_00) << DBMDX_USECASE_MGR_UID_BITS) & DBMDX_USECASE_MGR_UID_MASK)
+		cmd = (((DBMDX_USECASE_ID_UC_IDX_00 | DBMDX_USECASE_ID_PRJ_MELON | DBMDX_USECASE_ID_HWREV_00) << DBMDX_USECASE_MGR_UID_BITS) & DBMDX_USECASE_MGR_UID_MASK)
 				| ((DBMDX_DETECTION << DBMDX_USECASE_MGR_MODE_BITS) & DBMDX_USECASE_MGR_MODE_MASK)
 				| DBMDX_USECASE_MGR_CMD_LOAD | DBMDX_USECASE_MGR_CMD_START;
 	} else if (val == 1) {
@@ -18676,6 +18712,9 @@ static int dbmdx_process_detection_irq(struct dbmdx_private *p,
 	int ret = 0;
 	char uevent_buf[256];
 	s64 event_time_ms;
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
+#endif
 
 	dev_dbg(p->dev, "%s send_uevent_on_detection = %d\n", __func__, p->pdata->send_uevent_on_detection);
 
@@ -18790,7 +18829,19 @@ static int dbmdx_process_detection_irq(struct dbmdx_private *p,
 					"%s: Sending uevent failed %d\n",
 					__func__, ret);
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+			minerva_counter_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+				VITALS_DSP_COUNTER_SCHEMA_ID, "Kernel", "Kernel",
+				"DBMD4_DSP_metrics_count", "DSP_IRQ", 1, "count", NULL,
+				VITALS_NORMAL, NULL, NULL);
+
+			minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+				"%s:%s:100:%s,%s,%s,DSP_IRQ=true;BO,DSP_RESET=false;BO,"
+				"DSP_WDT=false;BO,DSP_DATA_PROCESS_BEGIN=false;BO:us-east-1",
+				METRICS_DSP_GROUP_ID, METRICS_DSP_VOICE_SCHEMA_ID,
+				PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY,
+				PREDEFINED_DEVICE_LANGUAGE_KEY);
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 			log_counter_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel", "DBMD4_DSP_metrics_count", "DSP_IRQ", 1, "count", NULL, VITALS_NORMAL);
 
 			log_to_metrics(ANDROID_LOG_INFO, "voice_dsp", "voice_dsp:def:DSP_IRQ=1;CT;1:NR");
@@ -19190,8 +19241,9 @@ static void dbmdx_pcm_streaming_work_mod_0(struct work_struct *work)
 	size_t data_offset;
 	u16 cur_config = 0xffff;
 	struct usecase_config *cur_usecase = NULL;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	ktime_t Current;
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
 #endif
 	size_t period_bytes = 0;
 
@@ -19385,25 +19437,53 @@ static void dbmdx_pcm_streaming_work_mod_0(struct work_struct *work)
 					p->current_pcm_rate;
 
 				if (p->fgMetricLogPrint == false) {
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 					p->fgMetricLogPrint = true;
 					Current = ktime_get();
+#endif
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+				if (p->dspStreamDuration >= MIN_SUSPEND_AUDIO_DURATION) {
+					minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+						"%s:%s:100:%s,%s,%s,DSP_DATA_CATCH_UP_FINISH=%d;IN,"
+						"DSP_DATA_PROCESS_FINISH=%d;IN,DSP_DATA_CANCEL=%d;IN:us-east-1",
+						METRICS_DSP_GROUP_ID, METRICS_DSP_CATCH_SCHEMA_ID,
+						PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY,
+						PREDEFINED_DEVICE_LANGUAGE_KEY,
+						ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime), -1, -1);
+					minerva_timer_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+						VITALS_DSP_TIMER_SCHEMA_ID, "Kernel", "Kernel",
+						"DBMD4_DSP_metrics_time", "DSP_DATA_CATCH_UP_FINISH",
+						ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime),
+						"ms", VITALS_NORMAL, NULL, NULL);
+				} else {
+						minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+							"%s:%s:100:%s,%s,%s,DSP_DATA_CATCH_UP_FINISH=%d;IN,"
+							"DSP_DATA_PROCESS_FINISH=%d;IN,DSP_DATA_CANCEL=%d;IN:us-east-1",
+							METRICS_DSP_GROUP_ID, METRICS_DSP_CATCH_SCHEMA_ID,
+							PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY,
+							PREDEFINED_DEVICE_LANGUAGE_KEY,
+							-1, ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime), -1);
+						minerva_timer_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+							VITALS_DSP_TIMER_SCHEMA_ID, "Kernel", "Kernel",
+							"DBMD4_DSP_metrics_time", "DSP_DATA_PROCESS_FINISH",
+							ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime),
+							"ms", VITALS_NORMAL, NULL, NULL);
+				}
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 					if (p->dspStreamDuration >= MIN_SUSPEND_AUDIO_DURATION) {
-						char buf[128];
-
-						snprintf(buf, sizeof(buf),
+						snprintf(dbmdx_metrics_log_buf, sizeof(dbmdx_metrics_log_buf),
 							"voice_dsp:def:DSP_catchup_ms=%lld;TI;1:NR",
 							ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime));
-						log_to_metrics(ANDROID_LOG_INFO, "voice_dsp", buf);
-
+						log_to_metrics(ANDROID_LOG_INFO, "voice_dsp",
+							dbmdx_metrics_log_buf);
 						log_timer_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel",
 							"DBMD4_DSP_metrics_time", "DSP_DATA_CATCH-UP_FINISH",
-							ktime_to_ms(Current)  - ktime_to_ms(p->StreamOpenTime),
+							ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime),
 							"ms", VITALS_NORMAL);
 					} else
 						log_timer_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel",
 							"DBMD4_DSP_metrics_time", "DSP_DATA_PROCESS_FINISH",
-							ktime_to_ms(Current)  - ktime_to_ms(p->StreamOpenTime),
+							ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime),
 							"ms", VITALS_NORMAL);
 #endif
 				}
@@ -21471,14 +21551,14 @@ static int dbmdx_get_devtree_pdata(struct device *dev,
 
 		if (pdata->project_sub_type ==
 			DBMDX_VA_VE_PROJECT_SUB_TYPE_VT_ONLY) {
-			/* aca123 */
+			/* Melon */
 			p->va_chip_enabled = true;
 			p->va_ve_chip_enabled = false;
 			p->mics_connected_to_va_ve_chip = false;
 			p->tdm_enable = (DBMDX_TDM_0_VA |
 						DBMDX_TDM_1_VA);
-#ifdef DBMDX_aca123_USECASES_SUPPORTED
-			p->idle_usecase = &config_uc_aca123_idle;
+#ifdef DBMDX_MELON_USECASES_SUPPORTED
+			p->idle_usecase = &config_uc_melon_idle;
 #else
 			p->idle_usecase = NULL;
 #endif
@@ -22425,7 +22505,7 @@ static int verify_platform_data(struct device *dev,
 
 		if (pdata->project_sub_type ==
 			DBMDX_VA_VE_PROJECT_SUB_TYPE_VT_ONLY) {
-			/* aca123 */
+			/* Melon */
 			p->va_chip_enabled = true;
 			p->va_ve_chip_enabled = false;
 		} else {
@@ -23123,7 +23203,7 @@ static int adf_debug_write(uintptr_t dest, uintptr_t src, int size)
 	return dbmdx_debug_write((u8 *)dest, (u8 *)src, size);
 }
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 static void *dbmdx_dsp_log_fliter(char *logLine)
 {
 	static uint32_t freqIndex;
@@ -23162,9 +23242,11 @@ static void *dbmdx_dsp_log_fliter(char *logLine)
 static void dbmdx_do_metrics_upload_work(struct work_struct *work)
 {
 	uint32_t *freqTs = NULL;
-	char metricsLogBuf[DBMDX_METRICS_STR_LEN] = {'\0'};
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE] = {'\0'};
 	char *cliCmds[2] = {"ctrl power ", "ctrl power 1 "};
 	int ret = 0;
+#endif
 	/*
 	 * only upload mertrics when dsp firmware load & run
 	 * if firmware not load or WDT happend， skip
@@ -23187,7 +23269,17 @@ static void dbmdx_do_metrics_upload_work(struct work_struct *work)
 			* [ 61710]<I>[CTRL_CLI]   1     20480   82%  49935
 			* [ 61711]<I>[CTRL_CLI]   2     10240    0%  17
 			*/
-			snprintf(metricsLogBuf, DBMDX_METRICS_STR_LEN,
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+			ret = minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+				"%s:%s:100:%s,%s,%s,FREQ_IDL_TS=%d;IN,FREQ_RUN_TS=%d;IN,"
+				"FREQ_VAD_TS=%d;IN:us-east-1", METRICS_DSP_GROUP_ID,
+				METRICS_DSP_FREQ_SCHEMA_ID, PREDEFINED_ESSENTIAL_KEY,
+				PREDEFINED_DEVICE_ID_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY,
+				*freqTs / 1000, *(freqTs + 1) / 1000, *(freqTs + 2) / 1000);
+			if (ret)
+				pr_err("minerva_metrics_log: fails to upload dsp freq duration %d\n", ret);
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+			snprintf(metricsLogBuf, DSP_METRICS_LOG_MAX_SIZE,
 					"voice_dsp:def:freq_idl_ts=%d;CT;1,freq_run_ts=%d;CT;1,freq_vad_ts=%d;CT;1:NR",
 					*freqTs / 1000,
 					*(freqTs + 1) / 1000,
@@ -23195,6 +23287,7 @@ static void dbmdx_do_metrics_upload_work(struct work_struct *work)
 			ret = log_to_metrics(ANDROID_LOG_INFO, "voice_dsp", metricsLogBuf);
 			if (ret)
 				pr_err("log_to_metrics: fails to upload dsp freq duration %d\n", ret);
+#endif
 		}
 	}
 	schedule_delayed_work(&dbmdx_metrics_upload_work, msecs_to_jiffies(DBMDX_METRIC_UPLOAD_PERIOD * 1000));
@@ -23265,10 +23358,8 @@ static int dbmdx_platform_probe(struct platform_device *pdev)
 		goto out_err_free_pdata;
 	}
 
-
 	p->dev = &pdev->dev;
-
-	p->vregulator = devm_regulator_get(p->dev, "dbmdx_regulator");
+	p->vregulator = devm_regulator_get_optional(p->dev, "dbmdx_regulator");
 	if (IS_ERR(p->vregulator)) {
 		dev_info(p->dev, "%s: Can't get voltage regulator\n",
 			__func__);
@@ -23354,7 +23445,7 @@ static int dbmdx_platform_probe(struct platform_device *pdev)
 	ret = adfDebug_initFs(adf_debug_read, adf_debug_write);
 	if (ret < 0)
 		dev_info(p->dev, "failed to add adf debugfs files\n");
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)  || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	/* init metrics upload work*/
 	INIT_DELAYED_WORK(&dbmdx_metrics_upload_work, dbmdx_do_metrics_upload_work);
 	schedule_delayed_work(&dbmdx_metrics_upload_work, msecs_to_jiffies(DBMDX_METRIC_UPLOAD_PERIOD * 1000));

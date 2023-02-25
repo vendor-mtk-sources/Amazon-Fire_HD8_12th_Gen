@@ -18,9 +18,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <drm/drmP.h>
 #include <linux/soc/mediatek/mtk-cmdq-ext.h>
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#include <linux/metricslog.h>
-#endif
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_ddp_comp.h"
@@ -29,6 +26,10 @@
 #include "mtk_drm_assert.h"
 #include "mtk_drm_mmp.h"
 #include "mtk_drm_trace.h"
+
+#if defined(CONFIG_TP_TO_LCD_ESD_CHECK)
+static int (*disp_esd_check_lcd_error)(void) = NULL;
+#endif
 
 #define ESD_TRY_CNT 5
 #define ESD_CHECK_PERIOD 2000 /* ms */
@@ -349,6 +350,23 @@ static int mtk_drm_request_eint(struct drm_crtc *crtc)
 	return ret;
 }
 
+#if defined(CONFIG_TP_TO_LCD_ESD_CHECK)
+int disp_esd_check_register(int (*esd_check_lcd_error)(void))
+{
+	int ret = 0;
+
+	if (!esd_check_lcd_error) {
+		ret = -1;
+		DDPPR_ERR("%s:invalid ESD check handler\n", __func__);
+		return ret;
+	}
+
+	disp_esd_check_lcd_error = esd_check_lcd_error;
+	return ret;
+}
+EXPORT_SYMBOL(disp_esd_check_register);
+#endif
+
 static int mtk_drm_esd_check(struct drm_crtc *crtc)
 {
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
@@ -379,6 +397,11 @@ static int mtk_drm_esd_check(struct drm_crtc *crtc)
 		ret = _mtk_esd_check_eint(crtc);
 	} else { /* READ LCM CMD  */
 		CRTC_MMP_MARK(drm_crtc_index(crtc), esd_check, 2, 0);
+#if defined(CONFIG_TP_TO_LCD_ESD_CHECK)
+		if (disp_esd_check_lcd_error)
+			ret = disp_esd_check_lcd_error();
+		else
+#endif
 		ret = _mtk_esd_check_read(crtc);
 	}
 
@@ -398,10 +421,21 @@ int mtk_drm_esd_recover(struct drm_crtc *crtc)
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *output_comp;
 	int ret = 0;
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char buf[METRICS_STR_LEN];
+#endif
+
 #if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-	char buf[128];
 	snprintf(buf, sizeof(buf), "%s:lcd:esd_recovery=1;CT;1:NR", __func__);
 	log_to_metrics(ANDROID_LOG_INFO, "LCDEvent", buf);
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_metrics_log(buf, METRICS_STR_LEN,"%s:%s:100:%s,%s,%s,%s,lcm_state=recovery;SY,"
+		"ESD_Recovery=1;IN:us-east-1",
+		METRICS_LCD_GROUP_ID, METRICS_LCD_SCHEMA_ID,
+		PREDEFINED_ESSENTIAL_KEY, PREDEFINED_MODEL_KEY,
+		PREDEFINED_TZ_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY);
 #endif
 	pr_notice("esd recovery %s\n", __func__);
 	CRTC_MMP_EVENT_START(drm_crtc_index(crtc), esd_recovery, 0, 0);

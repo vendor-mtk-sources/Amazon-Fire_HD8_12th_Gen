@@ -30,7 +30,7 @@
 
 static struct power_supply *bat_psy;
 static struct power_supply *wpc_psy;
-static char* ntc_name[]={"charge", "pmic","mux_sd","mux_9221","ap_ntc"};
+static char* ntc_name[]={"charge", "pmic","mux_sd","mux_9221","ap_ntc","usb_ntc"};
 static struct vs_zone_dts_data vs_thermal_data;
 
 /**
@@ -47,7 +47,18 @@ struct vs_cpufreq_cdev {
 	struct cpufreq_policy *policy;
 	struct freq_qos_request qos_req;
 };
+
+#ifdef CONFIG_CPU_MULTIPLE_CLUSTERS
+static int cpu_polices[] = {0, 6};
+enum core_cluster {
+	CPU_CLUSTER_0 = 0,
+	CPU_CLUSTER_1,
+	CPU_CLUSTER_NUM
+};
+static struct vs_cpufreq_cdev *cpufreq_cdev[CPU_CLUSTER_NUM];
+#else
 static struct vs_cpufreq_cdev *cpufreq_cdev;
+#endif
 
 enum thermal_bank_name {
         THERMAL_BANK0 = 0,
@@ -59,6 +70,146 @@ enum thermal_bank_name {
         THERMAL_BANK_NUM
 };
 
+#ifdef CONFIG_CPU_MULTIPLE_CLUSTERS
+static int vs_init_cpufreq_limit_power(int group, int cpu)
+{
+	struct cpufreq_policy *policy = NULL;
+	struct em_perf_domain *em = NULL;
+	unsigned int cpu_table_count = 0;
+	int ret = -1;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy) {
+		pr_err("%s: get cpufreq policy failed\n", __func__);
+		return ret;
+	}
+
+	em = em_cpu_get(policy->cpu);
+	if (!em) {
+		pr_err("%s: get cpu energy model failed\n", __func__);
+		return ret;
+	}
+
+	cpu_table_count = cpufreq_table_count_valid_entries(policy);
+	if (!cpu_table_count) {
+		pr_err("%s: CPUFreq table not found or has no valid entries\n",
+			 __func__);
+		return ret;
+	}
+
+	cpufreq_cdev[group] = kzalloc(sizeof(struct vs_cpufreq_cdev), GFP_KERNEL);
+	if (!cpufreq_cdev[group]) {
+		pr_err("%s: vs_cpufreq_cdev allocate memory failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	cpufreq_cdev[group]->policy = policy;
+	cpufreq_cdev[group]->em = em;
+	cpufreq_cdev[group]->max_level = cpu_table_count - 1;
+
+	ret = freq_qos_add_request(&policy->constraints,
+				   &cpufreq_cdev[group]->qos_req, FREQ_QOS_MAX,
+				   FREQ_QOS_MAX_DEFAULT_VALUE);
+
+	if (ret < 0) {
+		pr_err("%s: Fail to add freq constraint (%d)\n",
+				__func__, ret);
+		kfree(cpufreq_cdev[group]);
+		cpufreq_cdev[group] = NULL;
+		return ret;
+	}
+
+	pr_info("%s: cpufreq policy(%d) init success!\n", __func__, cpu);
+
+	return ret;
+}
+
+static unsigned int vs_cpu_power_to_freq(struct em_perf_domain *em,
+					 unsigned int max_level,
+					 unsigned int power)
+{
+	int i;
+
+	for (i = max_level; i > 0; i--) {
+		if (power >= em->table[i].power)
+			break;
+	}
+
+	return em->table[i].frequency;
+}
+
+static int get_cpu_cluster_max_power(int cluster)
+{
+	unsigned int num_cpus = 0;
+	int index = 0;
+
+	index = (cpufreq_cdev[cluster])->max_level;
+	num_cpus = cpumask_weight(cpufreq_cdev[cluster]->policy->related_cpus);
+
+	return cpufreq_cdev[cluster]->em->table[index].power * num_cpus;
+}
+
+static int get_cpu_cluster_min_power(int cluster)
+{
+        unsigned int num_cpus = 0;
+
+        num_cpus = cpumask_weight(cpufreq_cdev[cluster]->policy->related_cpus);
+        return cpufreq_cdev[cluster]->em->table[0].power * num_cpus;
+}
+
+static int set_cpufreq_thermal_power(unsigned int budget)
+{
+	unsigned int target_cpufreq, num_cpus = 0, little_cpu_max_power = 0;
+	int little_cpu_min_power = 0, large_cpu_min_power = 0, remain_budget = 0;
+	int i, ret = 0;
+	unsigned int cpu_budget[CPU_CLUSTER_NUM];
+
+	if (!cpufreq_cdev[0])
+		for (i = 0; i < CPU_CLUSTER_NUM; i++)
+			vs_init_cpufreq_limit_power(i, cpu_polices[i]);
+
+	if (!budget)
+		budget = get_cpu_cluster_max_power(CPU_CLUSTER_0) +
+			get_cpu_cluster_max_power(CPU_CLUSTER_1);
+
+	little_cpu_max_power = get_cpu_cluster_max_power(CPU_CLUSTER_0);
+	little_cpu_min_power = get_cpu_cluster_min_power(CPU_CLUSTER_0);
+	large_cpu_min_power = get_cpu_cluster_min_power(CPU_CLUSTER_1);
+
+	cpu_budget[CPU_CLUSTER_0] = little_cpu_min_power;
+	cpu_budget[CPU_CLUSTER_1] = large_cpu_min_power;
+	remain_budget = budget - (little_cpu_min_power + large_cpu_min_power);
+	if (remain_budget > 0) {
+		if (remain_budget <= (little_cpu_max_power - cpu_budget[CPU_CLUSTER_0])) {
+			cpu_budget[CPU_CLUSTER_0] += remain_budget;
+		} else {
+			cpu_budget[CPU_CLUSTER_0] = little_cpu_max_power;
+			cpu_budget[CPU_CLUSTER_1] = budget - little_cpu_max_power;
+		}
+	} else {
+		pr_notice("VS temp is to high,power is less than Sum of big and little cores!");
+	}
+	pr_info("budget:%u buget[0]:%u buget[1]:%u\n", budget,
+		cpu_budget[CPU_CLUSTER_0], cpu_budget[CPU_CLUSTER_1]);
+
+	for (i = 0; i < CPU_CLUSTER_NUM; i++) {
+		if (cpufreq_cdev[i] && cpufreq_cdev[i]->em) {
+			num_cpus = cpumask_weight(cpufreq_cdev[i]->policy->related_cpus);
+			target_cpufreq = vs_cpu_power_to_freq(cpufreq_cdev[i]->em,
+							      cpufreq_cdev[i]->max_level,
+							      cpu_budget[i]/num_cpus);
+			freq_qos_update_request(&cpufreq_cdev[i]->qos_req,
+						target_cpufreq);
+		} else {
+			pr_err("%s: Cpufreq failed to update budget (%d) %d\n",
+				__func__, i, cpu_budget[i]);
+			return -1;
+		}
+	}
+
+	return ret;
+}
+#else
 static int vs_init_cpufreq_limit_power(void)
 {
 	struct cpufreq_policy *policy = NULL;
@@ -148,6 +299,7 @@ static int set_cpufreq_thermal_power(unsigned int budget)
 
 	return ret;
 }
+#endif
 
 static int vs_wpc_read_temp(void)
 {

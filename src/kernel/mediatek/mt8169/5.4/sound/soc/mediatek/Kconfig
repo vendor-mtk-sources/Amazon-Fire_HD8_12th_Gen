@@ -227,6 +227,17 @@ config SND_SOC_MT8169_MT6366
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8169_abc123
+	tristate "ASoc Audio driver for MT8169 with MT6366 codec"
+	select SND_SOC_MT8169
+	select SND_SOC_MT6366
+	select SND_SOC_MT6358_ACCDET
+	help
+	  This adds ASoC driver for Mediatek MT8169 boards
+	  with the MT6366 codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MT8169_MT6357
 	tristate "ASoc Audio driver for MT8169 with MT6367 codec"
 	select SND_SOC_MT8169

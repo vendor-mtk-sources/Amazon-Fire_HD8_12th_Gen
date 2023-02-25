@@ -966,9 +966,6 @@ static int find_cpufreq_opp(int cluster, unsigned long freq)
 	int opp = CPUFREQ_NUM_OPP - 1;
 	int i;
 
-	/* add offset for cpufreq_table */
-	freq = freq + 1;
-
 	if (cluster == 0) {
 		for (i = (CPUFREQ_NUM_OPP - 1); i >= 0 ; i--)
 			if (freq == cpufreq_table_l[i]) {
@@ -986,6 +983,8 @@ static int find_cpufreq_opp(int cluster, unsigned long freq)
 	return opp;
 }
 
+#define BIG_CORE_NUM	(1 << 6)
+
 static int cpufreq_get_table(void)
 {
 	struct device *cpu_l_dev, *cpu_b_dev;
@@ -993,8 +992,13 @@ static int cpufreq_get_table(void)
 	unsigned long freq;
 	int i, num_opps;
 
-	if ((cpufreq_table_l[0]) && voltage_table_l[0])
+	if (cpu_is_online & BIG_CORE_NUM) {
+		if (((cpufreq_table_l[0]) && voltage_table_l[0]) &&
+		    ((cpufreq_table_l[1]) && voltage_table_l[1]))
+			return 0;
+	} else if (cpufreq_table_l[0] && voltage_table_l[0]) {
 		return 0;
+	}
 
 	if (cpu_online(CPU_NUM_B)) {
 		cpu_b_dev = get_cpu_device(CPU_NUM_B);
@@ -1060,6 +1064,8 @@ void cpufreq_cm_setting(void)
 		cpufreq = cpufreq_get(CPU_NUM_B)/1000;
 		qos_sram_write(CM_CPUFREQ_B_CUR_FREQ,  cpufreq);
 		qos_sram_write(CM_CPUFREQ_B_CUR_FREQ_OPP, find_cpufreq_opp(1, cpufreq));
+	} else {
+		qos_sram_write(CM_CPUFREQ_B_CUR_FREQ_OPP, 15);
 	}
 
 	if (cpu_online(CPU_NUM_L)) {
@@ -1073,7 +1079,8 @@ void cm_mgr_cpufreq_process(struct work_struct *work)
 {
 	cpufreq_get_table();
 	cpufreq_cm_setting();
-	schedule_delayed_work(&cm_mgr_cpufreq_work, msecs_to_jiffies(1000));
+	if (cm_mgr_enable)
+		schedule_delayed_work(&cm_mgr_cpufreq_work, msecs_to_jiffies(1000));
 }
 EXPORT_SYMBOL_GPL(cm_mgr_cpufreq_process);
 #endif

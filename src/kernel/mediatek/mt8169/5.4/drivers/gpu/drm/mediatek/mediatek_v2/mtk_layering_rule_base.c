@@ -48,9 +48,12 @@ static int ext_id_tuning(struct drm_device *dev,
 static unsigned int roll_gpu_for_idle;
 static int g_emi_bound_table[HRT_LEVEL_NUM];
 
+static DEFINE_MUTEX(layering_info_lock);
+
 #define RSZ_TILE_LENGTH 1440
 #define RSZ_IN_MAX_HEIGHT 4096
 #define DISP_RSZ_LAYER_NUM 2
+#define DISP_LAYER_RULE_MAX_NUM 1024
 
 static struct {
 	enum LYE_HELPER_OPT opt;
@@ -373,8 +376,9 @@ static int get_larb_by_ovl(struct drm_device *dev, int ovl_idx, int disp_idx)
 static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 			   enum DISP_DEBUG_LEVEL debug_level)
 {
-	int i, j;
-	struct drm_mtk_layer_config *layer_info;
+	bool alloc = false;
+	int i, j, ret;
+	struct drm_mtk_layer_config *layer_info = NULL;
 
 #define _HRT_FMT \
 	"HRT hrt_num:0x%x/mod:%d/dal:%d/addon_scn:(%d, %d, %d)/bd_tb:%d/i:%d\n"
@@ -395,6 +399,11 @@ static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 		for (i = 0; i < HRT_DISP_TYPE_NUM; i++) {
 			if (disp_info->layer_num[i] <= 0)
 				continue;
+			else if (disp_info->layer_num[i] >= DISP_LAYER_RULE_MAX_NUM) {
+				DDPPR_ERR("%s layer_num[%d] %d > DISP_LAYER_RULE_MAX_NUM\n",
+					__func__, i, disp_info->layer_num[i]);
+				continue;
+			}
 
 			DDPMSG("HRT D%d/M%d/LN%d/hrt:0x%x/G(%d,%d)/id%u\n", i,
 			       disp_info->disp_mode[i], disp_info->layer_num[i],
@@ -402,7 +411,38 @@ static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 			       disp_info->gles_tail[i], disp_info->hrt_idx);
 
 			for (j = 0; j < disp_info->layer_num[i]; j++) {
-				layer_info = &disp_info->input_config[i][j];
+				if (access_ok(&disp_info->input_config[i][j],
+					sizeof(struct drm_mtk_layer_config))) {
+					layer_info =
+						(!layer_info) ?
+						kzalloc(sizeof(struct drm_mtk_layer_config),
+							GFP_KERNEL) :
+						layer_info;
+
+					if (!layer_info) {
+						DDPPR_ERR("%s:%d NULL layer_info\n",
+								__func__, __LINE__);
+						continue;
+					} else
+						alloc = true;
+
+					ret = copy_from_user(layer_info,
+							&disp_info->input_config[i][j],
+							sizeof(struct drm_mtk_layer_config));
+					DDPMSG("%s layer_info copy_from_user ret %d\n",
+						__func__, ret);
+					if (ret != sizeof(struct drm_mtk_layer_config)) {
+						DDPPR_ERR("%s ret %d\n", __func__, ret);
+						break;
+					}
+				} else if (disp_info->input_config[i]) {
+					layer_info = &disp_info->input_config[i][j];
+				} else {
+					DDPPR_ERR("%s:%d layer_config[%d] is NULL\n",
+						__func__, __LINE__, i);
+					break;
+				}
+
 				DDPMSG(_L_FMT, j, layer_info->ovl_id,
 				       layer_info->src_offset_x,
 				       layer_info->src_offset_y,
@@ -433,6 +473,11 @@ static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 		for (i = 0; i < HRT_DISP_TYPE_NUM; i++) {
 			if (disp_info->layer_num[i] <= 0)
 				continue;
+			else if (disp_info->layer_num[i] >= DISP_LAYER_RULE_MAX_NUM) {
+				DDPPR_ERR("%s layer_num[%d] %d > DISP_LAYER_RULE_MAX_NUM\n",
+						__func__, i, disp_info->layer_num[i]);
+				continue;
+			}
 
 			DDPINFO("HRT D%d/M%d/LN%d/hrt:0x%x/G(%d,%d)/id%u\n", i,
 				disp_info->disp_mode[i],
@@ -441,7 +486,39 @@ static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 				disp_info->gles_tail[i], disp_info->hrt_idx);
 
 			for (j = 0; j < disp_info->layer_num[i]; j++) {
-				layer_info = &disp_info->input_config[i][j];
+				if (access_ok(&disp_info->input_config[i][j],
+					sizeof(struct drm_mtk_layer_config))) {
+
+					layer_info =
+						(!layer_info) ?
+						kzalloc(sizeof(struct drm_mtk_layer_config),
+							GFP_KERNEL) :
+						layer_info;
+
+					if (!layer_info) {
+						DDPPR_ERR("%s:%d NULL layer_info\n",
+								__func__, __LINE__);
+						continue;
+					} else
+						alloc = true;
+
+					ret = copy_from_user(layer_info,
+							&disp_info->input_config[i][j],
+							sizeof(struct drm_mtk_layer_config));
+					DDPINFO("%s layer_info copy_from_user ret %d\n",
+						__func__, ret);
+					if (ret != sizeof(struct drm_mtk_layer_config)) {
+						DDPPR_ERR("%s ret %d\n", __func__, ret);
+						break;
+					}
+				} else if (disp_info->input_config[i]) {
+					layer_info = &disp_info->input_config[i][j];
+				} else {
+					DDPPR_ERR("%s:%d layer_config[%d] is NULL\n",
+						__func__, __LINE__, i);
+					break;
+				}
+
 				DDPINFO(_L_FMT, j, layer_info->ovl_id,
 					layer_info->src_offset_x,
 					layer_info->src_offset_y,
@@ -460,6 +537,9 @@ static void dump_disp_info(struct drm_mtk_layering_info *disp_info,
 			}
 		}
 	}
+
+	if (alloc)
+		kfree(layer_info);
 }
 
 static void dump_disp_trace(struct drm_mtk_layering_info *disp_info)
@@ -1877,8 +1957,7 @@ static int check_disp_info(struct drm_mtk_layering_info *disp_info)
 		}
 
 		if ((ghead < 0 && gtail >= 0) || (gtail < 0 && ghead >= 0) || (gtail < ghead) ||
-		    (gtail >= layer_num)) {
-			dump_disp_info(disp_info, DISP_DEBUG_LEVEL_ERR);
+		    (layer_num > 0 && gtail >= layer_num)) {
 			DDPPR_ERR("[HRT] gles invalid, disp:%d, head:%d, tail:%d\n", disp_idx,
 				  disp_info->gles_head[disp_idx], disp_info->gles_tail[disp_idx]);
 			return -1;
@@ -1943,14 +2022,19 @@ static int set_disp_info(struct drm_mtk_layering_info *disp_info_user,
 {
 	int i;
 
+	mutex_lock(&layering_info_lock);
 	memcpy(&layering_info, disp_info_user,
 		sizeof(struct drm_mtk_layering_info));
 
-	for (i = 0; i < HRT_DISP_TYPE_NUM; i++)
-		if (_copy_layer_info_from_disp(disp_info_user, debug_mode, i))
+	for (i = 0; i < HRT_DISP_TYPE_NUM; i++) {
+		if (_copy_layer_info_from_disp(disp_info_user, debug_mode, i)) {
+			mutex_unlock(&layering_info_lock);
 			return -EFAULT;
+		}
+	}
 
 	memset(l_rule_info->addon_scn, 0x0, sizeof(l_rule_info->addon_scn));
+	mutex_unlock(&layering_info_lock);
 	return 0;
 }
 

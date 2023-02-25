@@ -93,10 +93,8 @@ static int mtk_iommu_sec_hw_init(void)
 	ret = KREE_TeeServiceCall(m4u_session, M4U_TZCMD_SEC_INIT,
 				  paramTypes, param);
 	mtk_iommu_sec_session_close();
-	if (ret != TZ_RESULT_SUCCESS) {
-		pr_info("%s error %d\n", __func__, ret);
-		return ret;
-	}
+	/* For svp. iommu sec memory must be initialized successfully. */
+	BUG_ON(ret != TZ_RESULT_SUCCESS);
 
 	sec_iova_size = param[1].value.a + SZ_1M;
 	pr_info("%s done (sec_iova_size 0x%x)\n", __func__, sec_iova_size);

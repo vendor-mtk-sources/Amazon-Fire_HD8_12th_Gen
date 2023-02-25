@@ -22,6 +22,7 @@
 #include "mtk_battery.h"
 #include "mtk_gauge.h"
 #include "battery_metrics.h"
+#include "charger_class.h"
 
 
 /* ============================================================ */
@@ -2924,28 +2925,30 @@ static void mt6357_gauge_shutdown(struct platform_device *pdev)
 			POWER_SUPPLY_PROP_DCAP_EN, &dcap);
 		if (!ret && dcap.intval) {
 			/* fix for CC cable:
-			 * after CC open, vbus reopen with 275ms from type-C SPEC
+			 * after CC open, vbus reopen with 650ms from type-C SPEC
 			 */
 			/* first, check vbus off */
-			for (i = 0; i < 20; i++) {
+			for (i = 0; i < 7; i++) {
 				regmap_read(gauge->regmap, 0xa88, &val);
 				val &= 0x10;
 				val >>= 4;
 				if (0 == val)
 					break;
-				msleep(10);
+				msleep(100);
 			}
 			/* second, check vbus re-on */
-			for (i = 0; i < 5; i++) {
+			for (i = 0; i < 45; i++) {
 				regmap_read(gauge->regmap, 0xa88, &val);
 				val &= 0x10;
 				val >>= 4;
 				if (1 == val)
 					break;
-				msleep(100);
+				msleep(10);
 			}
 			mt6357_charger_auto_on(&pdev->dev, false);
 			dev_info(&pdev->dev, "[%s] disable charger auto power-on\n", __func__);
+			/* disable charging again for charger IC auto charging by Vbus */
+			charger_dev_enable(get_charger_by_name("primary_chg"), false);
 		}
 	}
 

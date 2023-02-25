@@ -37,7 +37,7 @@ int mtk_hms_comp_get_id(struct device *dev, struct device_node *node,
 	int id;
 	int i;
 
-	if (comp_type < 0 || comp_type >= MTK_HMS_COMP_ID_MAX) {
+	if (comp_type >= MTK_HMS_COMP_ID_MAX) {
 		pr_info("comp_type is out of range");
 		return -EINVAL;
 	}
@@ -98,7 +98,7 @@ int mtk_hms_v4l2_comp_init(struct device *dev, struct device_node *node,
 	struct platform_device *larb_pdev;
 	int i;
 
-	if (comp_id < 0 || comp_id >= MTK_HMS_COMP_ID_MAX)
+	if (comp_id >= MTK_HMS_COMP_ID_MAX)
 		return -EINVAL;
 
 	comp->dev_node = of_node_get(node);

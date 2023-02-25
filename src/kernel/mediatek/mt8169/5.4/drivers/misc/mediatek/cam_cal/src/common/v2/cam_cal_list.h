@@ -28,6 +28,34 @@ unsigned int cam_cal_rear_read_region(
 	struct i2c_client *client, unsigned int addr,
 	unsigned char *data, unsigned int size);
 
+#ifdef CONFIG_abc123_SENSOR_OTP
+unsigned int hi556_tung_lce_r_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size);
+
+unsigned int hi556_tung_lce_f_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size);
+
+unsigned int gc05a2_tung_hlt_r_read_region(struct i2c_client *client,
+				unsigned int addr,
+				unsigned char *data,
+				unsigned int size);
+
+unsigned int gc05a2_tung_txd_f_read_region(struct i2c_client *client,
+				unsigned int addr,
+				unsigned char *data,
+				unsigned int size);
+
+unsigned int hi556_tung_lce3_r_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size);
+
+unsigned int hi556_tung_lce3_f_read_region(
+	struct i2c_client *client, unsigned int addr,
+	unsigned char *data, unsigned int size);
+#endif //CONFIG_abc123_SENSOR_OTP
+
 unsigned int cam_cal_get_sensor_list
 		(struct stCAM_CAL_LIST_STRUCT **ppCamcalList);
 

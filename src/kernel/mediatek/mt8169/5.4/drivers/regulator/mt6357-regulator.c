@@ -374,7 +374,7 @@ static int mt6357_regulator_is_enabled(struct regulator_dev *rdev)
 	int ret = 0;
 
 	if (rdev->use_count == 0) {
-		dev_notice(&rdev->dev, "%s:Suppose %s is off.(use_count=0)\n"
+		dev_dbg(&rdev->dev, "%s:Suppose %s is off.(use_count=0)\n"
 					, __func__, rdev->desc->name);
 		ret = 0;
 	} else

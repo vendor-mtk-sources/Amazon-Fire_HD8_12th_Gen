@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * stk8xxx.c - Linux driver for sensortek stk8xx accelerometer
+ * stk8xxx.c - Linux driver for sensortek stk8xxx accelerometer
  * Copyright (C) 2021 Sensortek
  */
 #include <accel.h>
@@ -30,7 +30,6 @@
 	/* enable Zero-G simulation.*/
 	/* This feature only works when both of STK_FIR and STK_ZG are turn ON. */
 //#define STK_AUTOK /* Auto cali */
-
 
 #if defined STK_MTK
 	#undef STK_INTERRUPT_MODE
@@ -87,9 +86,7 @@ enum STK_TRC {
 	STK_TRC_RAWDATA = 0x02,
 };
 
-
 struct stk8xxx_data {
-
 	struct spi_device           *spi;
 	struct i2c_client           *client;
 	const struct stk_bus_ops    *bops;
@@ -166,14 +163,14 @@ struct stk8xxx_data {
 
 struct stk_bus_ops {
 	int (*read)(struct stk8xxx_data *stk, unsigned char addr, unsigned char *val);
-	int (*read_block)(struct stk8xxx_data *stk, unsigned char addr, int len, unsigned char *val);
+	int (*read_block)(struct stk8xxx_data *stk, unsigned char addr, int len,
+								 unsigned char *val);
 	int (*write)(struct stk8xxx_data *stk, unsigned char addr, unsigned char val);
 };
 
 #define STK_REG_READ(stk, addr, val)			(stk->bops->read(stk, addr, val))
 #define STK_REG_READ_BLOCK(stk, addr, len, val) (stk->bops->read_block(stk, addr, len, val))
 #define STK_REG_WRITE(stk, addr, val)		   (stk->bops->write(stk, addr, val))
-
 
 /* axis */
 #define STK_AXIS_X                  0
@@ -187,12 +184,10 @@ struct stk_bus_ops {
 #define STK_DATA_BUF_NUM 3
 #define CALI_SIZE 3 /*CALI_SIZE should not less than 3*/
 
-
 static int accel_self_test[STK_AXES_NUM] = {0};
 static s16 accel_xyz_offset[STK_AXES_NUM] = {0};
 /* default tolenrance is 20% */
 static int accel_cali_tolerance = 20;
-
 
 static int stk_readsensordata(int *pdata_x, int *pdata_y, int *pdata_z);
 static int stk_writeCalibration(int *dat);
@@ -445,6 +440,7 @@ static int stk8xxx_init_flag;
 #ifdef CONFIG_OF
 static const struct of_device_id stk8xxx_match_table[] = {
 	{.compatible = "mediatek,stk8321"},
+	{.compatible = "mediatek,stk8ba58"},
 	{},
 };
 #endif /* CONFIG_OF */
@@ -987,7 +983,6 @@ static int stk_set_offset(struct stk8xxx_data *stk, u8 offset[3])
 	}
 
 exit:
-
 	if (!enable)
 		stk_set_enable(stk, 0);
 
@@ -1017,12 +1012,11 @@ static void stk_fifo_reading(struct stk8xxx_data *stk, u8 fifo[], int len)
 	STK_ACC_LOG("Done for reading FIFO data");
 }
 
-
 /*
  * @brief: Change FIFO status
  *		  If wm = 0, change FIFO to bypass mode.
  *		  STK8XXX_CFG1_XYZ_FRAME_MAX >= wm, change FIFO to FIFO mode +
- *										  STK8XXX_CFG2_FIFO_DATA_SEL_XYZ.
+ *								STK8XXX_CFG2_FIFO_DATA_SEL_XYZ.
  *		  Do nothing if STK8XXX_CFG1_XYZ_FRAME_MAX < wm.
  *
  * @param[in/out] stk: struct stk8xxx_data *
@@ -1065,7 +1059,8 @@ static int stk_change_fifo_status(struct stk8xxx_data *stk, u8 wm)
 			return err;
 
 #ifdef STK_INTERRUPT_MODE
-		err = STK_REG_WRITE(stk, STK8XXX_REG_INTMAP2, regIntmap2 | STK8XXX_INTMAP2_FWM2INT1);
+		err = STK_REG_WRITE(stk, STK8XXX_REG_INTMAP2, regIntmap2 |
+			 STK8XXX_INTMAP2_FWM2INT1);
 		if (err)
 			return err;
 
@@ -1081,7 +1076,8 @@ static int stk_change_fifo_status(struct stk8xxx_data *stk, u8 wm)
 			return err;
 
 #ifdef STK_INTERRUPT_MODE
-		err = STK_REG_WRITE(stk, STK8XXX_REG_INTMAP2, regIntmap2 & (~STK8XXX_INTMAP2_FWM2INT1));
+		err = STK_REG_WRITE(stk, STK8XXX_REG_INTMAP2,
+			 regIntmap2 & (~STK8XXX_INTMAP2_FWM2INT1));
 		if (err)
 			return err;
 
@@ -1153,7 +1149,6 @@ static int stk_reg_init(struct stk8xxx_data *stk, stk_rangesel range, int sr_no)
 	if (err)
 		return err;
 
-
 	/* INT1, push-pull, active high. */
 	err = STK_REG_WRITE(stk, STK8XXX_REG_INTCFG1,
 			STK8XXX_INTCFG1_INT1_ACTIVE_H | STK8XXX_INTCFG1_INT1_OD_PUSHPULL);
@@ -1176,7 +1171,6 @@ static int stk_reg_init(struct stk8xxx_data *stk, stk_rangesel range, int sr_no)
 #endif /* STK_INTERRUPT_MODE */
 
 #ifdef STK_AMD
-
 	/* enable new data interrupt for any motion */
 	err = STK_REG_WRITE(stk, STK8XXX_REG_INTEN1, STK8XXX_INTEN1_SLP_EN_XYZ);
 
@@ -1429,14 +1423,18 @@ static int stk8xxx_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct stk8xxx_data *stk = i2c_get_clientdata(client);
+	int error = 0;
 
+	if (!stk) {
+		STK_ACC_ERR("Null point to find stk8xxx_data");
+		return -EINVAL;
+	}
 	acc_driver_pause_polling(1);
-	if (atomic_read(&stk->enabled)) {
-		stk_set_enable(stk, 0);
-		stk->temp_enable = true;
-	} else {
+	error = stk_set_enable(stk, false);
+	if (error) {
 		acc_driver_pause_polling(0);
-		stk->temp_enable = false;
+		STK_ACC_ERR("set suspend fail");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1453,13 +1451,20 @@ static int stk8xxx_resume(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct stk8xxx_data *stk = i2c_get_clientdata(client);
+	int error = 0;
 
+	if (!stk) {
+		STK_ACC_ERR("Null point to find stk8baxx_data");
+		return -EINVAL;
+	}
 	if (acc_driver_query_polling_state() == 1) {
-		if (stk->temp_enable)
-			stk_set_enable(stk, 1);
+		error = stk_set_enable(stk, true);
+		if (error) {
+			STK_ACC_ERR("set resume fail");
+			return -EINVAL;
+		}
 	}
 
-	stk->temp_enable = false;
 	acc_driver_pause_polling(0);
 	return 0;
 }
@@ -1627,7 +1632,7 @@ static void stk_turn_step_counter(struct stk8xxx_data *stk, bool turn)
 
 	if (turn) {
 		if (STK_REG_WRITE(stk, STK8XXX_REG_STEPCNT2,
-							  STK8XXX_STEPCNT2_RST_CNT | STK8XXX_STEPCNT2_STEP_CNT_EN))
+				STK8XXX_STEPCNT2_RST_CNT | STK8XXX_STEPCNT2_STEP_CNT_EN))
 			return;
 	} else {
 		if (STK_REG_WRITE(stk, STK8XXX_REG_STEPCNT2, 0))
@@ -1722,7 +1727,7 @@ static void stk_low_pass_fir(struct stk8xxx_data *stk, s16 *xyz)
  * @param[out] acc_ave: XYZ average
  */
 static void stk_calculate_average(struct stk8xxx_data *stk,
-								  unsigned int delay_ms, int sample_no, int acc_ave[3])
+	unsigned int delay_ms, int sample_no, int acc_ave[3])
 {
 	int i = 0;
 
@@ -2002,9 +2007,12 @@ static void stk_get_cali(struct stk8xxx_data *stk)
 			STK_ACC_LOG("offset:%d,%d,%d, mode=0x%X",
 					stk_file[3], stk_file[5], stk_file[7], stk_file[8]);
 			STK_ACC_LOG("variance=%u,%u,%u",
-					 (stk_file[9] << 24 | stk_file[10] << 16 | stk_file[11] << 8 | stk_file[12]),
-					 (stk_file[13] << 24 | stk_file[14] << 16 | stk_file[15] << 8 | stk_file[16]),
-					 (stk_file[17] << 24 | stk_file[18] << 16 | stk_file[19] << 8 | stk_file[20]));
+					 (stk_file[9] << 24 | stk_file[10] << 16 |
+						 stk_file[11] << 8 | stk_file[12]),
+					 (stk_file[13] << 24 | stk_file[14] << 16 |
+						 stk_file[15] << 8 | stk_file[16]),
+					 (stk_file[17] << 24 | stk_file[18] << 16 |
+						 stk_file[19] << 8 | stk_file[20]));
 		} else {
 			int i;
 
@@ -2269,10 +2277,12 @@ static int stk_reg_read(struct stk8xxx_data *stk, u8 reg, int len, u8 *val)
 	if (error == 2)
 		error = 0;
 	else if (error < 0) {
-		STK_ACC_ERR("transfer failed to read reg:0x%x with len:%d, error=%d", reg, len, error);
+		STK_ACC_ERR("transfer failed to read reg:0x%x with len:%d, error=%d",
+			 reg, len, error);
 		error = -EIO;
 	} else {
-		STK_ACC_ERR("size error in reading reg:0x%x with len:%d, error=%d", reg, len, error);
+		STK_ACC_ERR("size error in reading reg:0x%x with len:%d, error=%d",
+			 reg, len, error);
 		error = -EIO;
 	}
 	return error;
@@ -2639,7 +2649,6 @@ static ssize_t send_store(struct device_driver *ddri, const char *buf, size_t co
 	}
 
 exit:
-
 	if (!enable)
 		stk_set_enable(stk, 0);
 
@@ -2699,7 +2708,6 @@ static ssize_t recv_store(struct device_driver *ddri, const char *buf, size_t co
 
 	STK_ACC_LOG("read reg[0x%X]=0x%X", addr, stk->recv);
 exit:
-
 	if (!enable)
 		stk_set_enable(stk, 0);
 
@@ -3211,7 +3219,8 @@ static ssize_t firlen_show(struct device_driver *ddri, char *buf)
 		STK_ACC_LOG("sum = [\t%d \t%d \t%d]",
 				stk->fir.sum[0], stk->fir.sum[1], stk->fir.sum[2]);
 		STK_ACC_LOG("avg = [\t%d \t%d \t%d]",
-				 stk->fir.sum[0] / len, stk->fir.sum[1] / len, stk->fir.sum[2] / len);
+				 stk->fir.sum[0] / len, stk->fir.sum[1] / len,
+				 stk->fir.sum[2] / len);
 	}
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", len);
@@ -3331,7 +3340,6 @@ static ssize_t accelsetselftest_show(struct device_driver *ddri, char *buf)
 			"[G Sensor] set_accel_self_test PASS\n");
 
 stk_accel_self_test_exit:
-
 	stk_set_enable(stk, false);
 
 	return scnprintf(buf, PAGE_SIZE,
@@ -3434,7 +3442,8 @@ static ssize_t accelsetcali_show(struct device_driver *ddri, char *buf)
 			return 0;
 		}
 		if (atomic_read(&stk->trace) & STK_TRC_INFO)
-			STK_ACC_LOG("accel cali simple data x:%d, y:%d, z:%d", data_x, data_y, data_z);
+			STK_ACC_LOG("accel cali simple data x:%d, y:%d, z:%d",
+				 data_x, data_y, data_z);
 
 		if (data_z > 8500)
 			golden_z = 9800;
@@ -3456,7 +3465,8 @@ static ssize_t accelsetcali_show(struct device_driver *ddri, char *buf)
 	avg[STK_AXIS_Z] /= times;
 
 	if (atomic_read(&stk->trace) & STK_TRC_INFO)
-		STK_ACC_LOG("accel cali final data x:%d, y:%d, z:%d", avg[STK_AXIS_X], avg[STK_AXIS_Y], avg[STK_AXIS_Z]);
+		STK_ACC_LOG("accel cali final data x:%d, y:%d, z:%d",
+				 avg[STK_AXIS_X], avg[STK_AXIS_Y], avg[STK_AXIS_Z]);
 
 	cali[STK_AXIS_X] = golden_x - avg[STK_AXIS_X];
 	cali[STK_AXIS_Y] = golden_y - avg[STK_AXIS_Y];
@@ -3612,7 +3622,6 @@ static ssize_t accelgetidme_show(struct device_driver *ddri, char *buf)
 			accel_xyz_offset[2]);
 }
 
-
 static DRIVER_ATTR_RW(enable);
 static DRIVER_ATTR_RO(value);
 static DRIVER_ATTR_RW(delay);
@@ -3644,7 +3653,6 @@ static DRIVER_ATTR_RO(accelgetcali);
 static DRIVER_ATTR_RW(power_mode);
 static DRIVER_ATTR_RW(cali_tolerance);
 static DRIVER_ATTR_RO(accelgetidme);
-
 
 static struct driver_attribute *stk_attr_list[] = {
 	&driver_attr_enable,
@@ -3679,7 +3687,6 @@ static struct driver_attribute *stk_attr_list[] = {
 	&driver_attr_cali_tolerance,
 	&driver_attr_accelgetidme,
 };
-
 
 /**
  * @brief: read accel data from register.
@@ -3734,13 +3741,19 @@ static int stk_readsensordata(int *pdata_x, int *pdata_y, int *pdata_z)
 	stk->xyz[STK_AXIS_Z] = stk->xyz[STK_AXIS_Z] * GRAVITY_EARTH_1000 / stk->sensitivity;
 
 #ifndef STK_MTK_2_0
-	stk->xyz[STK_AXIS_X] += stk->cvt.sign[STK_AXIS_X] * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_X]];
-	stk->xyz[STK_AXIS_Y] += stk->cvt.sign[STK_AXIS_Y] * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_Y]];
-	stk->xyz[STK_AXIS_Z] += stk->cvt.sign[STK_AXIS_Z] * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_Z]];
+	stk->xyz[STK_AXIS_X] += stk->cvt.sign[STK_AXIS_X]
+		 * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_X]];
+	stk->xyz[STK_AXIS_Y] += stk->cvt.sign[STK_AXIS_Y]
+		 * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_Y]];
+	stk->xyz[STK_AXIS_Z] += stk->cvt.sign[STK_AXIS_Z]
+		 * (s16)stk->cali_sw[stk->cvt.map[STK_AXIS_Z]];
 
-	accelData[stk->cvt.map[STK_AXIS_X]] = (int)(stk->cvt.sign[STK_AXIS_X] * stk->xyz[STK_AXIS_X]);
-	accelData[stk->cvt.map[STK_AXIS_Y]] = (int)(stk->cvt.sign[STK_AXIS_Y] * stk->xyz[STK_AXIS_Y]);
-	accelData[stk->cvt.map[STK_AXIS_Z]] = (int)(stk->cvt.sign[STK_AXIS_Z] * stk->xyz[STK_AXIS_Z]);
+	accelData[stk->cvt.map[STK_AXIS_X]] = (int)(stk->cvt.sign[STK_AXIS_X]
+		 * stk->xyz[STK_AXIS_X]);
+	accelData[stk->cvt.map[STK_AXIS_Y]] = (int)(stk->cvt.sign[STK_AXIS_Y]
+		 * stk->xyz[STK_AXIS_Y]);
+	accelData[stk->cvt.map[STK_AXIS_Z]] = (int)(stk->cvt.sign[STK_AXIS_Z]
+		 * stk->xyz[STK_AXIS_Z]);
 #else
 	accelData[STK_AXIS_X] = stk->xyz[STK_AXIS_X];
 	accelData[STK_AXIS_Y] = stk->xyz[STK_AXIS_Y];
@@ -3931,7 +3944,6 @@ static int gsensor_set_delay(u64 delay_ns)
 }
 
 
-
 /* struct accel_factory_fops */
 static int stk_factory_enable_sensor(bool enable, int64_t sample_ms)
 {
@@ -3944,7 +3956,6 @@ static int stk_factory_enable_sensor(bool enable, int64_t sample_ms)
 
 	return 0;
 }
-
 
 /* struct accel_factory_fops */
 static int stk_factory_get_data(int32_t data[3], int *status)
@@ -4214,7 +4225,6 @@ static int stk_init_mtk(struct stk8xxx_data *stk)
 		return -1;
 	}
 #endif // STK_MTK_2_0
-
 
 	return 0;
 }

@@ -672,8 +672,7 @@ unsigned long mtk_devfreq_get_voltage(unsigned long target_freq)
 	if (!kbdev)
 		return 0;
 
-	target_freq++;
-	opp = dev_pm_opp_find_freq_floor(kbdev->dev, &target_freq);
+	opp = dev_pm_opp_find_freq_exact(kbdev->dev, target_freq, true);
 	if (IS_ERR(opp))
 		return 0;
 
@@ -692,6 +691,9 @@ static void mtk_devfreq_set_cur_freq(unsigned long cur_freq)
 		return;
 
 	kbdev->current_nominal_freq = cur_freq * 1000;
+
+	if (kbdev->devfreq)
+		devfreq_update_stats(kbdev->devfreq);
 }
 
 /* Now only ptp/thermal throttle will change opps in devfreq */

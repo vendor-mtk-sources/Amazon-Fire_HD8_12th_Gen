@@ -47,13 +47,13 @@ static int mos_det_R_table[] = {17, 36, 56, 80, 107, 137, 172, 213,
 	262, 320, 391, 480, 594, 747, 960, 1280};
 
 /* For metrics */
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#define BATTERY_METRICS_BUFF_SIZE 512
-char g_fusb_buf[BATTERY_METRICS_BUFF_SIZE];
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define METRICS_BUFF_SIZE_FUSB251 512
+char g_fusb_buf[METRICS_BUFF_SIZE_FUSB251];
 
 #define fusb251_metrics_log(domain, fmt, ...)			\
 do {								\
-	memset(g_fusb_buf, 0, BATTERY_METRICS_BUFF_SIZE);		\
+	memset(g_fusb_buf, 0, METRICS_BUFF_SIZE_FUSB251);		\
 	snprintf(g_fusb_buf, sizeof(g_fusb_buf), fmt, ##__VA_ARGS__);	\
 	log_to_metrics(ANDROID_LOG_INFO, domain, g_fusb_buf);	\
 } while (0)
@@ -839,6 +839,15 @@ static void fusb251_report_event(struct fusb251 *fusb251, int event)
 			 "LiquidDetection:def:ld_current_state=%d;CT;1,ld_previous_state=%d;CT;1,ld_duration_sec=%d;CT;1:NR",
 			 event, pre_event, duration_sec);
 #endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		minerva_metrics_log(g_fusb_buf, METRICS_BUFF_SIZE_FUSB251,
+				"%s:%s:100:%s,%s,%s,ld_current_state=%d;IN,ld_previous_state=%d;IN,"
+				"ld_duration_sec=%d;IN:us-east-1",
+				METRICS_LD_GROUP_ID, METRICS_LD_SCHEMA_ID, PREDEFINED_ESSENTIAL_KEY,
+				PREDEFINED_MODEL_KEY, PREDEFINED_TZ_KEY, event, pre_event, duration_sec);
+#endif
+
 		memcpy(&fusb251->event_ts, &now_ts, sizeof(struct timespec));
 	} else {
 		if (event == TYPE_DRY)

@@ -223,7 +223,7 @@ int mt8169_afe_enable_cgs(struct mtk_base_afe *afe)
 	int ret = 0;
 	int i;
 
-	dev_info(afe->dev, "%s()\n", __func__);
+	dev_dbg(afe->dev, "%s()\n", __func__);
 
 	for (i = CLK_I2S1_BCLK; i <= CLK_ETDM_OUT1_BCLK; i++) {
 		ret = clk_prepare_enable(afe_priv->clk[i]);
@@ -242,7 +242,7 @@ void mt8169_afe_disable_cgs(struct mtk_base_afe *afe)
 	struct mt8169_afe_private *afe_priv = afe->platform_priv;
 	int i;
 
-	dev_info(afe->dev, "%s()\n", __func__);
+	dev_dbg(afe->dev, "%s()\n", __func__);
 
 	for (i = CLK_I2S1_BCLK; i <= CLK_ETDM_OUT1_BCLK; i++)
 		clk_disable_unprepare(afe_priv->clk[i]);
@@ -253,7 +253,7 @@ int mt8169_afe_enable_clock(struct mtk_base_afe *afe)
 	struct mt8169_afe_private *afe_priv = afe->platform_priv;
 	int ret = 0;
 
-	dev_info(afe->dev, "%s()\n", __func__);
+	dev_dbg(afe->dev, "%s()\n", __func__);
 
 
 	ret = clk_prepare_enable(afe_priv->clk[CLK_INFRA_SYS_AUDIO]);
@@ -347,7 +347,7 @@ void mt8169_afe_disable_clock(struct mtk_base_afe *afe)
 {
 	struct mt8169_afe_private *afe_priv = afe->platform_priv;
 
-	dev_info(afe->dev, "%s()\n", __func__);
+	dev_dbg(afe->dev, "%s()\n", __func__);
 
 	clk_disable_unprepare(afe_priv->clk[CLK_AFE]);
 #if IS_ENABLED(CONFIG_SND_SOC_FPGA)

@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/switch.h>
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 #endif
 

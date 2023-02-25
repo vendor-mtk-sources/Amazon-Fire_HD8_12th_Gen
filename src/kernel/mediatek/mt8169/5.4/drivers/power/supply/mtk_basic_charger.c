@@ -73,7 +73,7 @@ void select_cv(struct mtk_charger *info)
 {
 	u32 constant_voltage;
 
-	constant_voltage = info->data.battery_cv;
+	constant_voltage = mtk_get_battery_cv(info);
 	if (info->enable_sw_jeita)
 		if (info->sw_jeita.cv != 0)
 			constant_voltage = info->sw_jeita.cv;

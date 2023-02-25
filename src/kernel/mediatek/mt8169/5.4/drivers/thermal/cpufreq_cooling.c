@@ -24,7 +24,7 @@
 
 #include <trace/events/thermal.h>
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 #define TSCPU_METRICS_STR_LEN 128
 #define PREFIX "thermaltscpu:def"
@@ -438,7 +438,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 	int ret;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	char buf[TSCPU_METRICS_STR_LEN];
 	const struct amazon_logger_ops *amazon_logger = amazon_logger_ops_get();
 #endif
@@ -451,6 +451,15 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	if (cpufreq_cdev->cpufreq_state == state)
 		return 0;
 
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	if (amazon_logger && amazon_logger->minerva_metrics_log) {
+		amazon_logger->minerva_metrics_log(buf, TSCPU_METRICS_STR_LEN,
+				"%s:%s:100:%s,cooler_name=cpumonitor_%s_cooler;SY,"
+				"target_state=%ld;IN:us-east-1",
+				METRICS_THERMAL_GROUP_ID, METRICS_THERMAL_COOLER_SCHEMA_ID,
+				PREDEFINED_ESSENTIAL_KEY, cdev->type, state);
+	}
+#endif
 #if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	snprintf(buf, TSCPU_METRICS_STR_LEN,
 		"%s:cpumonitor_%s_cooler_state=%ld;CT;1:NR",

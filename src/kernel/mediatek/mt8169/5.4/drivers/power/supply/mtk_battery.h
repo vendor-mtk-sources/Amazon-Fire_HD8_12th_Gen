@@ -111,6 +111,7 @@ enum battery_property {
 	BAT_PROP_INIT_DONE,
 	BAT_PROP_FG_RESET,
 	BAT_PROP_LOG_LEVEL,
+	BAT_PROP_TEMP_TH_GAP,
 };
 
 struct battery_data {
@@ -243,6 +244,9 @@ enum fg_daemon_cmds {
 	FG_DAEMON_CMD_GET_SOC_DECIMAL_RATE,
 	FG_DAEMON_CMD_GET_DIFF_SOC_SET,
 	FG_DAEMON_CMD_SET_ZCV_INTR_EN,
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	FG_DAEMON_CMD_SEND_FG_USE_2ND_ZCV,
+#endif
 
 	FG_DAEMON_CMD_FROM_USER_NUMBER
 
@@ -265,6 +269,9 @@ enum Fg_kernel_cmds {
 	FG_KERNEL_CMD_AG_LOG_TEST,
 	FG_KERNEL_CMD_CHG_DECIMAL_RATE,
 	FG_KERNEL_CMD_SET_FULL_CV,
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	FG_KERNEL_CMD_USE_AGING_ZCV,
+#endif
 
 	FG_KERNEL_CMD_FROM_USER_NUMBER
 
@@ -333,7 +340,10 @@ struct fuel_gauge_table_custom_data {
 	/* cust_battery_meter_table.h */
 	int active_table_number;
 	struct fuel_gauge_table fg_profile[MAX_TABLE];
-
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	struct fuel_gauge_table fg_profile_aging1[MAX_TABLE];
+	struct fuel_gauge_table fg_profile_aging2[MAX_TABLE];
+#endif
 	int temperature_tb0;
 	int fg_profile_temperature_0_size;
 	struct fuelgauge_profile_struct fg_profile_temperature_0[100];
@@ -700,6 +710,7 @@ struct mtk_battery_algo {
 	int last_temp;
 	int T_table;
 	int T_table_c;
+	bool dod_init_done;
 
 	/*soc only follows c_soc */
 	int soc;
@@ -1039,6 +1050,9 @@ struct mtk_battery {
 	int (*resume)(struct mtk_battery *gm);
 
 	int log_level;
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	int use_aging_zcv;
+#endif
 };
 
 struct mtk_battery_sysfs_field_info {

@@ -520,6 +520,13 @@ config IDME
 	  Select Y here to enable IDME support to read the data
 	  via userspace (i.e. /proc/idme/* entries)
 
+config AMAZON_MINERVA_METRICS_LOG
+	tristate "Amazon Minerva Metrics logger driver"
+	select RING_BUFFER
+	default n
+	help
+	   Enable Amazon Minerva Metrics/Vitals logger driver
+
 config AMAZON_METRICS_LOG
 	tristate "Amazon Metrics logger driver"
 	select RING_BUFFER

@@ -7,7 +7,7 @@ config I2C_HID
 	default n
 	depends on I2C && INPUT
 	select HID
-	---help---
+	help
 	  Say Y here if you use a keyboard, a touchpad, a touchscreen, or any
 	  other HID based devices which is connected to your computer via I2C.
 
@@ -16,4 +16,13 @@ config I2C_HID
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-hid.
 
+config I2C_HID_NO_USE_PM
+	bool "HID over I2C no use pm"
+	default n
+	depends on I2C_HID
+	help
+	  Say Y here if you use a keyboard, a touchpad, a touchscreen, or any
+	  other HID based devices which is connected to your computer via I2C
+	  you do not want to enable the PM function
+	  If unsure, say N.
 endmenu

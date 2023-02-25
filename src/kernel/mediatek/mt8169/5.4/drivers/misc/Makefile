@@ -63,6 +63,8 @@ obj-$(CONFIG_IDME) 		+= idme.o
 obj-y				+= mediatek/
 obj-y				+= metricslog.o
 obj-$(CONFIG_AMAZON)		+= amazon/
-obj-$(CONFIG_AMAZON_METRICS_LOG) 	+= amazon_logger.o
+ifeq ($(or $(strip $(CONFIG_AMAZON_METRICS_LOG)), $(strip $(CONFIG_AMAZON_MINERVA_METRICS_LOG))),m)
+	obj-m += amazon_logger.o
+endif
 obj-$(CONFIG_HISI_HIKEY_USB)	+= hisi_hikey_usb.o
 obj-$(CONFIG_F303_USBC_CHARGER)	+= amzn_f303_usbc.o

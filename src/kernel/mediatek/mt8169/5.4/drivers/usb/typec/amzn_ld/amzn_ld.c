@@ -33,24 +33,14 @@
 #include "amzn_ld.h"
 #if IS_ENABLED(CONFIG_PUBADC_MANAGE)
 #include <pubadc_manage.h>
-#endif
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#include <linux/metricslog.h>
-#endif
-
-/* For metrics */
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#define BATTERY_METRICS_BUFF_SIZE_LIQUID              512
-static char g_m_buf_liquid[BATTERY_METRICS_BUFF_SIZE_LIQUID];
-
-#define liquid_metrics_log(domain, fmt, ...) \
-do { \
-	memset(g_m_buf_liquid, 0, BATTERY_METRICS_BUFF_SIZE_LIQUID); \
-	snprintf(g_m_buf_liquid, sizeof(g_m_buf_liquid), fmt, ##__VA_ARGS__); \
-	log_to_metrics(ANDROID_LOG_INFO, domain, g_m_buf_liquid); \
-} while (0)
 #else
-static inline void liquid_metrics_log(void) {}
+#include <linux/iio/machine.h>
+#include <linux/iio/driver.h>
+#endif
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#include <linux/metricslog.h>
+#define METRICS_BUFF_SIZE_LIQUID              512
+static char g_m_buf_liquid[METRICS_BUFF_SIZE_LIQUID];
 #endif
 
 static struct liquid *g_liquid;
@@ -229,9 +219,22 @@ static void liquid_report_event(struct liquid *liquid, int event)
 			duration_sec = 0;
 		else
 			duration_sec = now_ts.tv_sec - liquid->event_ts.tv_sec;
-		liquid_metrics_log("Liquid_Detection", "Liquid_Detection:\
-			def:current_state=%d;CT;1,previous_state=%d;CT;1,\
-			duration_sec=%d;CT;1:NR", event, pre_event, duration_sec);
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+		memset(g_m_buf_liquid, 0, METRICS_BUFF_SIZE_LIQUID);
+		snprintf(g_m_buf_liquid, sizeof(g_m_buf_liquid),
+			"Liquid_Detection:def:current_state=%d;CT;1,"
+			"previous_state=%d;CT;1,duration_sec=%d;CT;1:NR",
+			event, pre_event, duration_sec);
+		log_to_metrics(ANDROID_LOG_INFO, "Liquid_Detection", g_m_buf_liquid);
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		minerva_metrics_log(g_m_buf_liquid, METRICS_BUFF_SIZE_LIQUID,
+			"%s:%s:100:%s,%s,%s,ld_current_state=%d;IN,"
+			"ld_previous_state=%d;IN,ld_duration_sec=%d;IN:us-east-1",
+			METRICS_LD_GROUP_ID, METRICS_LD_SCHEMA_ID, PREDEFINED_ESSENTIAL_KEY,
+			PREDEFINED_MODEL_KEY, PREDEFINED_TZ_KEY, event, pre_event, duration_sec);
+#endif
 		memcpy(&liquid->event_ts, &now_ts, sizeof(struct timespec));
 	} else {
 		if (event == TYPE_DRY)
@@ -557,6 +560,7 @@ static int liquid_pinctrl_init(struct platform_device *pdev)
 {
 	struct liquid *liquid = platform_get_drvdata(pdev);
 	struct pinctrl *pinctrl = NULL;
+	bool private_adc;
 
 	pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
@@ -625,29 +629,34 @@ static int liquid_pinctrl_init(struct platform_device *pdev)
 		goto out;
 	}
 
+	private_adc = of_property_read_bool(pdev->dev.of_node, "private_adc");
+	if (!private_adc) {
 #if IS_ENABLED(CONFIG_PUBADC_MANAGE)
-	pr_info("%s: ld_ctrl2 is control by pubadc\n", __func__);
+		pr_info("%s: ld_ctrl2 is control by pubadc\n", __func__);
 #else
-	liquid->ld_ctrl2_init = pinctrl_lookup_state(pinctrl, "ldctrl2_init");
-	if (IS_ERR(liquid->ld_ctrl2_init)) {
-		pr_err("%s: can't find ld_ctrl2_init\n", __func__);
-		goto out;
-	}
+		liquid->ld_ctrl2_init = pinctrl_lookup_state(pinctrl, "ldctrl2_init");
+		if (IS_ERR(liquid->ld_ctrl2_init)) {
+			pr_err("%s: can't find ld_ctrl2_init\n", __func__);
+			goto out;
+		}
 
-	liquid->ld_ctrl2_low = pinctrl_lookup_state(pinctrl, "ldctrl2_low");
-	if (IS_ERR(liquid->ld_ctrl2_low)) {
-		pr_err("%s: can't find ld_ctrl2_low\n", __func__);
-		goto out;
-	}
+		liquid->ld_ctrl2_low = pinctrl_lookup_state(pinctrl, "ldctrl2_low");
+		if (IS_ERR(liquid->ld_ctrl2_low)) {
+			pr_err("%s: can't find ld_ctrl2_low\n", __func__);
+			goto out;
+		}
 
-	liquid->ld_ctrl2_high = pinctrl_lookup_state(pinctrl, "ldctrl2_high");
-	if (IS_ERR(liquid->ld_ctrl2_high)) {
-		pr_err("%s: can't find ld_ctrl2_high\n", __func__);
-		goto out;
-	}
-
-	pinctrl_select_state(liquid->ld_pinctrl, liquid->ld_ctrl2_init);
+		liquid->ld_ctrl2_high = pinctrl_lookup_state(pinctrl, "ldctrl2_high");
+		if (IS_ERR(liquid->ld_ctrl2_high)) {
+			pr_err("%s: can't find ld_ctrl2_high\n", __func__);
+			goto out;
+		}
+		pinctrl_select_state(liquid->ld_pinctrl, liquid->ld_ctrl2_init);
 #endif
+	}
+	else
+		pr_info("%s: ld_ctrl2 is control by private_adc\n", __func__);
+
 	pinctrl_select_state(liquid->ld_pinctrl, liquid->ld_ctrl1_init);
 	pinctrl_select_state(liquid->ld_pinctrl, liquid->ld_detection1_init);
 	pinctrl_select_state(liquid->ld_pinctrl, liquid->ld_detection2_init);
@@ -776,6 +785,11 @@ bool liquid_check_id(struct platform_device *pdev)
 	int ret = 0;
 	unsigned char liquid_dts_id;
 	unsigned char pubadc_io_id;
+	bool ignore_id_check;
+
+	ignore_id_check = of_property_read_bool(np, "ignore_id_check");
+	if (ignore_id_check)
+		return true;
 
 	ret = of_property_read_u8(np, "liquid_dts_id", &liquid_dts_id);
 	if (ret < 0) {

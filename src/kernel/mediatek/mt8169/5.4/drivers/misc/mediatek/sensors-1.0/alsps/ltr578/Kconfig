@@ -4,3 +4,9 @@ config MTK_LTR578
 	default n
 	help
 	  Support for ROHM LTR578 ALS.
+
+config ALS_RAW_SUPPORT
+	bool "LTR578 Store Raw Lux Data"
+	default n
+	help
+	  SUPPORT CONTROL LTR578 TO STORE RAW LUX DATA

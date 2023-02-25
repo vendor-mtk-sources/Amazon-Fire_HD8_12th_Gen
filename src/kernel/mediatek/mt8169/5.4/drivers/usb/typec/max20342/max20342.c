@@ -45,13 +45,13 @@
 static struct max20342 *g_max20342;
 
 /* For metrics */
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#define BATTERY_METRICS_BUFF_SIZE_MAX20342 512
-char g_max_buf_max20342[BATTERY_METRICS_BUFF_SIZE_MAX20342];
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define METRICS_BUFF_SIZE_MAX20342 512
+char g_max_buf_max20342[METRICS_BUFF_SIZE_MAX20342];
 
 #define max20342_metrics_log(domain, fmt, ...) \
 do { \
-	memset(g_max_buf_max20342, 0, BATTERY_METRICS_BUFF_SIZE_MAX20342); \
+	memset(g_max_buf_max20342, 0, METRICS_BUFF_SIZE_MAX20342); \
 	snprintf(g_max_buf_max20342, sizeof(g_max_buf_max20342), fmt, ##__VA_ARGS__); \
 	log_to_metrics(ANDROID_LOG_INFO, domain, g_max_buf_max20342); \
 } while (0)
@@ -531,6 +531,13 @@ static void max20342_report_event(struct max20342 *max20342, int event)
 		max20342_metrics_log("Liquid_Detection", "Liquid_Detection:\
 			def:current_state=%d;CT;1,previous_state=%d;CT;1,\
 			duration_sec=%d;CT;1:NR", event, pre_event, duration_sec);
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		minerva_metrics_log(g_max_buf_max20342, METRICS_BUFF_SIZE_MAX20342,
+				"%s:%s:100:%s,%s,%s,ld_current_state=%d;IN,ld_previous_state=%d;IN,ld_duration_sec=%d;IN:us-east-1",
+				METRICS_LD_GROUP_ID, METRICS_LD_SCHEMA_ID, PREDEFINED_ESSENTIAL_KEY,
+				PREDEFINED_MODEL_KEY, PREDEFINED_TZ_KEY, event, pre_event, duration_sec);
 #endif
 
 		memcpy(&max20342->event_ts, &now_ts, sizeof(struct timespec));

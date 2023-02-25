@@ -84,3 +84,9 @@ config MTK_AEE_UT
 	  aed-debug.c is AEE UT test case file, just for generate some vendor
 	  exception to test AEE dump flow, include in KE, HWT, HW_reboot, EE,
 	  and kernelAPI exception
+
+config MTK_AEE_TFA
+	tristate "determine ATF version"
+	default n
+	help
+	  Differentiate ATF version, ATF and tf-a use different arm_smccc_smc API.

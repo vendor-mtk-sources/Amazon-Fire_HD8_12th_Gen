@@ -3762,8 +3762,8 @@ static int p922x_thermal_notify(struct thermal_zone_device *thermal,
 		life_cycle_set_thermal_shutdown_reason
 			(THERMAL_SHUTDOWN_REASON_BTS);
 #endif
-		last_kmsg_thermal_shutdown(dev_name(&thermal->device));
 		set_shutdown_enable_dcap();
+		last_kmsg_thermal_shutdown(dev_name(&thermal->device));
 	}
 
 	return 0;

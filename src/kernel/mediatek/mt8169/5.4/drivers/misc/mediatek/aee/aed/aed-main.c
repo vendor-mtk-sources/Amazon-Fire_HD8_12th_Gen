@@ -1816,7 +1816,6 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 			memset(maps, 0, MaxMapsSize);
 			down_read(&rms_mm->mmap_sem);
-			task_lock(task);
 			vma = rms_mm->mmap;
 			while (vma && (mapcount < rms_mm->map_count)) {
 				show_map_vma(maps, &mapsLength, vma);
@@ -1845,7 +1844,6 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					break;
 			}
 
-			task_unlock(task);
 			up_read(&rms_mm->mmap_sem);
 			mmput(rms_mm);
 			if (copy_to_user(thread_info.Userthread_maps,
@@ -1913,6 +1911,8 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case AEEIOCTL_CHECK_SUID_DUMPABLE:
+	{
+		struct mm_struct *t_mm;
 		pr_debug("%s: check suid dumpable ioctl\n", __func__);
 
 		if (copy_from_user(&pid, (void __user *)arg, sizeof(int))) {
@@ -1937,17 +1937,26 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				goto EXIT;
 			}
 
-			task_lock(task);
-			if (!task->mm) {
+			get_task_struct(task);
+			rcu_read_unlock();
+
+			if (!try_get_task_stack(task)) {
+				ret = -EINVAL;
+				put_task_struct(task);
+				goto EXIT;
+			}
+
+			t_mm = get_task_mm(task);
+			if (!t_mm) {
 				pr_info("%s: process:%d task mm null\n",
 					__func__, pid);
-				task_unlock(task);
-				rcu_read_unlock();
+				put_task_stack(task);
+				put_task_struct(task);
 				ret = -EINVAL;
 				goto EXIT;
 			}
 
-			dumpable = get_dumpable(task->mm);
+			dumpable = get_dumpable(t_mm);
 			if (!dumpable) {
 				pr_info("%s: %d no need set dumpable\n",
 					__func__, pid);
@@ -1955,8 +1964,9 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				pr_info("%s: get process:%d dumpable:%d\n",
 					__func__, pid, dumpable);
 			}
-			task_unlock(task);
-			rcu_read_unlock();
+			mmput(t_mm);
+			put_task_stack(task);
+			put_task_struct(task);
 		} else {
 			pr_info("%s: check suid dumpable ioctl pid invalid\n",
 				__func__);
@@ -1964,6 +1974,7 @@ static long aed_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		break;
+	}
 	case AEEIOCTL_SET_FORECE_RED_SCREEN:
 		if (copy_from_user(
 				&force_red_screen, (void __user *)arg,
@@ -2445,17 +2456,26 @@ static unsigned int kedump_get_data_info(int index, struct ipanic_data *data)
 
 	header_buffer = remap_lowmem(header_addr, header_size);
 	if (header_buffer == NULL) {
-		pr_err("kedump_buffer: ioremap failed\n");
+		pr_err("kedump_buffer: ioremap header buffer failed\n");
 		return 0;
 	}
 
+	if (header_buffer->valid != 1) {
+		pr_err("ipanic_header(%d) invalid: 0x%x\n", index, header_buffer->valid);
+		return 0;
+	}
 	data_offset = header_buffer->offset;
 	data_size = header_buffer->used;
 	data_addr = CONFIG_MTK_AEE_SAVE_DEBUGINFO_ADDR + data_offset;
 
+	if (data_addr + data_size > CONFIG_MTK_AEE_SAVE_DEBUGINFO_ADDR + CONFIG_MTK_AEE_SAVE_DEBUGINFO_SIZE) {
+		pr_err("ipanic_data(%d) exceeds the limit of the kedump buffer size\n", index);
+		return 0;
+	}
+
 	data->buffer = remap_lowmem(data_addr, data_size);
 	if (data->buffer == NULL) {
-		pr_err("kedump_buffer: ioremap failed\n");
+		pr_err("kedump_buffer: ioremap data buffer failed\n");
 		return 0;
 	}
 	data->size = data_size;
@@ -2493,27 +2513,32 @@ static int kedump_buffer_show_atf(struct seq_file *m, void *v)
 		kedump_add2atf(m, IPANIC_LAST_PC, pdata, datasize);
 
 	seq_printf(m, "\n********last spm data********\n");
+	memset(&pdata, 0, sizeof(pdata));
 	datasize = kedump_get_data_info(IPANIC_LAST_SPM_DATA, &pdata);
 	if (datasize > 0)
 		kedump_add2atf(m, IPANIC_LAST_SPM_DATA, pdata, datasize);
 
 	seq_printf(m, "\n********last atf********\n");
+	memset(&pdata, 0, sizeof(pdata));
 	datasize = kedump_get_data_info(IPANIC_LAST_ATF, &pdata);
 	if (datasize > 0)
 		kedump_add2atf(m, IPANIC_LAST_ATF, pdata, datasize);
 
 	seq_printf(m, "\n********last dramc********\n");
+	memset(&pdata, 0, sizeof(pdata));
 	datasize = kedump_get_data_info(IPANIC_LAST_DRAMC, &pdata);
 	if (datasize > 0) {
 		kedump_add2atf(m, IPANIC_LAST_DRAMC, pdata, datasize > LAST_DRAM_LIMIT_SIZE? LAST_DRAM_LIMIT_SIZE: datasize);
 	}
 
 	seq_printf(m, "\n********last sspm data********\n");
+	memset(&pdata, 0, sizeof(pdata));
 	datasize = kedump_get_data_info(IPANIC_LAST_SSPM_DATA, &pdata);
 	if (datasize > 0)
 		kedump_add2atf(m, IPANIC_LAST_SSPM_DATA, pdata, datasize);
 
 	seq_printf(m, "\n********last sspm log********\n");
+	memset(&pdata, 0, sizeof(pdata));
 	datasize = kedump_get_data_info(IPANIC_LAST_SSPM_LOG, &pdata);
 	if (datasize > 0)
 		kedump_add2atf(m, IPANIC_LAST_SSPM_LOG, pdata, datasize);

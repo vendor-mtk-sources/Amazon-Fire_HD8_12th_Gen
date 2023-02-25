@@ -47,7 +47,7 @@
 
 static bool pwrkey_press;
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 static struct work_struct metrics_work;
 static void pwrkey_log_to_metrics(struct work_struct *data);
@@ -323,7 +323,7 @@ static irqreturn_t mtk_pmic_keys_release_irq_handler_thread(
 	dev_dbg(info->keys->dev, "release key =%d using PMIC\n", info->keycode);
 
 	pwrkey_press = false;
-	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 		schedule_work(&metrics_work);
 	#endif
 
@@ -366,7 +366,7 @@ static irqreturn_t mtk_pmic_keys_irq_handler_thread(int irq, void *data)
 	}
 
 	pwrkey_press = true;
-	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 		schedule_work(&metrics_work);
 	#endif
 
@@ -464,8 +464,8 @@ static const struct of_device_id of_mtk_pmic_keys_match_tbl[] = {
 };
 MODULE_DEVICE_TABLE(of, of_mtk_pmic_keys_match_tbl);
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-#define PWRKEY_METRICS_STR_LEN 128
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define PWRKEY_METRICS_STR_LEN 512
 static void pwrkey_log_to_metrics(struct work_struct *data)
 {
 	char *action;
@@ -473,12 +473,22 @@ static void pwrkey_log_to_metrics(struct work_struct *data)
 	int ret;
 
 	action = (pwrkey_press) ? "press" : "release";
+
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	ret = snprintf(buf, PWRKEY_METRICS_STR_LEN,
 			"%s:powi%c:report_action_is_%s=1;CT;1:NR", __func__,
 			action[0], action);
 	if (ret < 0)
 		pr_notice("[%s] snprintf fail %d\n", __func__, ret);
 	log_to_metrics(ANDROID_LOG_INFO, "PowerKeyEvent", buf);
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_metrics_log(buf, PWRKEY_METRICS_STR_LEN,
+	"%s:%s:100:%s,report_action_is_action=%s;SY:us-east-1",
+	METRICS_PWRKEY_GROUP_ID, METRICS_PWRKEY_SCHEMA_ID,
+	PREDEFINED_ESSENTIAL_KEY, action);
+#endif
 }
 #endif
 
@@ -590,7 +600,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 		INIT_DELAYED_WORK(&keys->kpoc_reboot_work, do_kpoc_reboot);
 	}
 
-	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+	#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 		INIT_WORK(&metrics_work, pwrkey_log_to_metrics);
 	#endif
 

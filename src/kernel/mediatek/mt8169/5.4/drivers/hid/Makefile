@@ -136,6 +136,7 @@ obj-$(CONFIG_USB_MOUSE)		+= usbhid/
 obj-$(CONFIG_USB_KBD)		+= usbhid/
 
 obj-$(CONFIG_I2C_HID)		+= i2c-hid/
-
+obj-$(CONFIG_I2C_HID_ILITEK)	+= ILITEK_HID_over_I2c/
+obj-$(CONFIG_HID_TOUCHSCREEN_FTS)	+= hid-focal/
 obj-$(CONFIG_INTEL_ISH_HID)	+= intel-ish-hid/
 obj-$(INTEL_ISH_FIRMWARE_DOWNLOADER)	+= intel-ish-hid/

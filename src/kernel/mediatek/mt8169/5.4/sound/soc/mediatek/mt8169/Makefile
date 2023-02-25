@@ -37,6 +37,7 @@ obj-$(CONFIG_SND_SOC_MT8169_MT6366) += mt8169-mt6366.o
 obj-$(CONFIG_SND_SOC_MT8169_MT6357) += mt8169-mt6366.o
 obj-$(CONFIG_SND_SOC_MT8169_abc123) += abc123.o
 obj-$(CONFIG_SND_SOC_MT8169_RASPITE) += mt8169-raspite.o
+obj-$(CONFIG_SND_SOC_MT8169_abc123) += mt8169-abc123.o
 
 # MENU Governor Predict(low power)
 ifeq ($(CONFIG_MTK_ACAO_SUPPORT),y)

@@ -16,6 +16,13 @@ config OPTEE_SHM_NUM_PRIV_PAGES
 	  This sets the number of private shared memory pages to be
 	  used by OP-TEE TEE driver.
 
+config OPTEE_NEW_RPC_COMMAND_ID_SET
+	bool "OP-TEE support new MTK RPC Command ID Set"
+	default n
+	depends on OPTEE
+	help
+	  This use new mtk rpc command id set from OP-TEE RPC.
+
 config OPTEE_REE_CONSOLE
 	tristate "OP-TEE REE Console"
 	default y

@@ -24,8 +24,10 @@
 #include <linux/input/mt.h>
 #define INPUT_TYPE_B_PROTOCOL
 #endif
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+
+#if defined(CONFIG_AMAZON_METRICS_LOG) || defined(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
+#define MINERVA_LOG_MAX_SIZE 1024
 #endif
 
 #include "goodix_ts_core.h"
@@ -1553,8 +1555,8 @@ static void goodix_ts_esd_work(struct work_struct *work)
 			struct goodix_ts_core, ts_esd);
 	const struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
 	int ret = 0;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
-	char metrics_buf[128];
+#if defined(CONFIG_AMAZON_METRICS_LOG) || defined(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char metrics_buf[MINERVA_LOG_MAX_SIZE] = {0};
 #endif
 
 	if (ts_esd->irq_status)
@@ -1571,7 +1573,13 @@ static void goodix_ts_esd_work(struct work_struct *work)
 		ts_err("esd check failed");
 		goodix_ts_power_off(cd);
 		goodix_ts_power_on(cd);
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if defined(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		minerva_metrics_log(metrics_buf, MINERVA_LOG_MAX_SIZE, "%s:%s:100:%s,%s,%s,%s,%s,%s,%s,"
+			"key_power=0;IN,key_volup=0;IN,key_voldown=0;IN,touch_tap=0;IN,esd_recovery=1;IN:us-east-1",
+			METRICS_INPUT_GROUP_ID, METRICS_INPUT_SCHEMA_ID, PREDEFINED_ESSENTIAL_KEY,
+			PREDEFINED_DEVICE_ID_KEY, PREDEFINED_CUSTOMER_ID_KEY, PREDEFINED_OS_KEY,
+			PREDEFINED_DEVICE_LANGUAGE_KEY, PREDEFINED_TZ_KEY, PREDEFINED_MODEL_KEY);
+#elif defined(CONFIG_AMAZON_METRICS_LOG)
 		snprintf(metrics_buf, sizeof(metrics_buf),
 			"touch:goodix_berlin:ESD_recovery=1;CT;1:NR");
 		log_to_metrics(ANDROID_LOG_INFO, "TouchEvent", metrics_buf);

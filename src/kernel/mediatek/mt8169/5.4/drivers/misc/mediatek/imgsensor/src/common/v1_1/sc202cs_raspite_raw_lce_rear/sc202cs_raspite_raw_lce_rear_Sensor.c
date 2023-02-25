@@ -183,7 +183,7 @@ static struct SENSOR_WINSIZE_INFO_STRUCT imgsensor_winsize_info[5] = {
 #if MULTI_WRITE
 #define I2C_BUFFER_LEN    510
 #else
-#define I2C_BUFFER_LEN    2
+#define I2C_BUFFER_LEN    3
 #endif
 
 static kal_uint16 sc202cs_table_write_cmos_sensor(kal_uint16 *para, kal_uint32 len)

@@ -274,12 +274,16 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	inter_vproc = info->intermediate_voltage;
 
 	old_freq_hz = clk_get_rate(cpu_clk);
+
+	mutex_lock(&info->lock);
+
 	old_vproc = info->old_vproc;
 	if (old_vproc == 0)
 		old_vproc = regulator_get_voltage(info->proc_reg);
 	if (old_vproc < 0) {
 		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
-		return old_vproc;
+		ret = old_vproc;
+		goto out_unlock;
 	}
 
 	freq_hz = freq_table[index].frequency * 1000;
@@ -288,13 +292,12 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (IS_ERR(opp)) {
 		pr_err("cpu%d: failed to find OPP for %ld\n",
 		       policy->cpu, freq_hz);
-		return PTR_ERR(opp);
+		ret = PTR_ERR(opp);
+		goto out_unlock;
 	}
 
 	vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
-
-	mutex_lock(&info->lock);
 
 	/*
 	 * If the new voltage or the intermediate voltage is higher than the
@@ -307,8 +310,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 			pr_err("cpu%d: failed to scale up voltage!\n",
 			       policy->cpu);
 			mtk_cpufreq_set_voltage(info, old_vproc);
-			mutex_unlock(&info->lock);
-			return ret;
+			goto out_unlock;
 		}
 	}
 
@@ -319,8 +321,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 		       policy->cpu);
 		mtk_cpufreq_set_voltage(info, old_vproc);
 		WARN_ON(1);
-		mutex_unlock(&info->lock);
-		return ret;
+		goto out_unlock;
 	}
 
 	/* Set the original PLL to target rate. */
@@ -330,8 +331,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 		       policy->cpu);
 		clk_set_parent(cpu_clk, armpll);
 		mtk_cpufreq_set_voltage(info, old_vproc);
-		mutex_unlock(&info->lock);
-		return ret;
+		goto out_unlock;
 	}
 
 	/* Set parent of CPU clock back to the original PLL. */
@@ -341,8 +341,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 		       policy->cpu);
 		mtk_cpufreq_set_voltage(info, inter_vproc);
 		WARN_ON(1);
-		mutex_unlock(&info->lock);
-		return ret;
+		goto out_unlock;
 	}
 
 	/*
@@ -355,8 +354,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 			pr_err("cpu%d: failed to scale down voltage!\n",
 			       policy->cpu);
 			WARN_ON(1);
-			mutex_unlock(&info->lock);
-			return ret;
+			goto out_unlock;
 		}
 	}
 
@@ -364,6 +362,10 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	mutex_unlock(&info->lock);
 
 	return 0;
+
+out_unlock:
+	mutex_unlock(&info->lock);
+	return ret;
 }
 
 #define DYNAMIC_POWER "dynamic-power-coefficient"

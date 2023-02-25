@@ -4209,7 +4209,7 @@ static int mt8169_afe_runtime_suspend(struct device *dev)
 	unsigned int value = 0;
 	int ret;
 
-	dev_info(afe->dev, "%s() ++\n", __func__);
+	dev_dbg(afe->dev, "%s() ++\n", __func__);
 
 	if (!afe->regmap)
 		goto skip_regmap;
@@ -4255,7 +4255,7 @@ static int mt8169_afe_runtime_resume(struct device *dev)
 	struct mt8169_afe_private *afe_priv = afe->platform_priv;
 	int ret;
 
-	dev_info(afe->dev, "%s() ++\n", __func__);
+	dev_dbg(afe->dev, "%s() ++\n", __func__);
 
 	ret = mt8169_afe_enable_clock(afe);
 	if (ret)
@@ -4290,7 +4290,7 @@ static int mt8169_afe_runtime_resume(struct device *dev)
 	/* enable AFE */
 	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0x1);
 
-	dev_info(afe->dev, "%s() --\n", __func__);
+	dev_dbg(afe->dev, "%s() --\n", __func__);
 
 skip_regmap:
 	return 0;

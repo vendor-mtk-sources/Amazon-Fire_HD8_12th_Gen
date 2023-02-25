@@ -44,7 +44,9 @@ do {								\
 } while (0)
 
 struct mtk_charger;
-#define BATTERY_CV 4350000
+#define BATTERY_CV        4400000
+#define BATTERY_CV_AGING1 4300000
+#define BATTERY_CV_AGING2 4000000
 #define V_CHARGER_MAX 6500000 /* 6.5 V */
 #define V_CHARGER_MIN 4600000 /* 4.6 V */
 #define V_VBUS_UVLO 4300000 /* 4.3 V */
@@ -240,6 +242,23 @@ struct charger_custom_data {
 	int min_charger_voltage_2;
 	int max_dmivr_charger_current;
 
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	int battery_cv_aging1;	/* uv */
+	int jeita_temp_above_t4_cv_aging1;
+	int jeita_temp_t3_to_t4_cv_aging1;
+	int jeita_temp_t2_to_t3_cv_aging1;
+	int jeita_temp_t1_to_t2_cv_aging1;
+	int jeita_temp_t0_to_t1_cv_aging1;
+	int jeita_temp_below_t0_cv_aging1;
+
+	int battery_cv_aging2;	/* uv */
+	int jeita_temp_above_t4_cv_aging2;
+	int jeita_temp_t3_to_t4_cv_aging2;
+	int jeita_temp_t2_to_t3_cv_aging2;
+	int jeita_temp_t1_to_t2_cv_aging2;
+	int jeita_temp_t0_to_t1_cv_aging2;
+	int jeita_temp_below_t0_cv_aging2;
+#endif
 };
 
 struct charger_data {
@@ -428,6 +447,11 @@ struct mtk_charger {
 	bool vbus_recovery_from_uvlo;
 
 	struct switch_dev invalid_charger;
+
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	int top_off_mode_cv_aging1;
+	int top_off_mode_cv_aging2;
+#endif
 };
 
 /* functions which framework needs*/
@@ -456,6 +480,7 @@ extern int get_charger_zcv(struct mtk_charger *info,
 extern void _wake_up_charger(struct mtk_charger *info);
 extern int battery_get_soc(void);
 extern void select_cv(struct mtk_charger *info);
+extern int mtk_get_battery_cv(struct mtk_charger *info);
 
 /* functions for other */
 extern int mtk_chg_enable_vbus_ovp(bool enable);

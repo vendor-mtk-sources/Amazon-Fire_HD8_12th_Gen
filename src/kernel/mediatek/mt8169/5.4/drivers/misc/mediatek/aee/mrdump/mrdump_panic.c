@@ -22,6 +22,7 @@
 
 #include <mrdump.h>
 #include <mt-plat/mboot_params.h>
+#include <mt-plat/mtk_system_reset.h>
 #include "mrdump_mini.h"
 #include "mrdump_private.h"
 
@@ -31,12 +32,25 @@
 
 static struct pt_regs saved_regs;
 
-/* no export symbol to aee_exception_reboot, only used in exception flow */
-/* PSCI v1.1 extended power state encoding for SYSTEM_RESET2 function */
-#define PSCI_1_1_RESET2_TYPE_VENDOR_SHIFT   31
-#define PSCI_1_1_RESET2_TYPE_VENDOR     \
-	(1 << PSCI_1_1_RESET2_TYPE_VENDOR_SHIFT)
+#if IS_ENABLED(CONFIG_MTK_AEE_TFA)
+static void aee_exception_reboot(int reboot_reason)
+{
+	struct arm_smccc_res res;
+	int opt1 = 0, opt2 = 0;
 
+	if (reboot_reason == AEE_REBOOT_MODE_HANG_DETECT)
+		opt1 |= ((unsigned char)AEE_EXP_TYPE_HANG_DETECT) << RESET2_TYPE_DOMAIN_USAGE_SHIFT;
+	else if (reboot_reason == AEE_REBOOT_MODE_WDT)
+		opt1 |= ((unsigned char)AEE_EXP_TYPE_HWT) << RESET2_TYPE_DOMAIN_USAGE_SHIFT;
+	else
+		opt1 |= ((unsigned char)AEE_EXP_TYPE_KE) << RESET2_TYPE_DOMAIN_USAGE_SHIFT;
+
+	opt1 |= (unsigned char)MTK_DOMAIN_AEE;
+	arm_smccc_smc(PSCI_FN_NATIVE(1_1, SYSTEM_RESET2),
+		PSCI_1_1_RESET2_TYPE_VENDOR | opt1,
+		opt2, 0, 0, 0, 0, 0, &res);
+}
+#else
 static void aee_exception_reboot(void)
 {
 	struct arm_smccc_res res;
@@ -46,7 +60,7 @@ static void aee_exception_reboot(void)
 		PSCI_1_1_RESET2_TYPE_VENDOR | opt1,
 		opt2, 0, 0, 0, 0, 0, &res);
 }
-
+#endif
 
 #if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_ARM64)
 static inline void show_kaslr(void)
@@ -218,7 +232,11 @@ int mrdump_common_die(int reboot_reason, const char *msg,
 	default:
 		aee_nested_printf("num_die-%d, last_step-%d, next_step-%d\n",
 				  num_die, last_step, next_step);
+#if IS_ENABLED(CONFIG_MTK_AEE_TFA)
+		aee_exception_reboot(reboot_reason);
+#else
 		aee_exception_reboot();
+#endif
 		break;
 	}
 

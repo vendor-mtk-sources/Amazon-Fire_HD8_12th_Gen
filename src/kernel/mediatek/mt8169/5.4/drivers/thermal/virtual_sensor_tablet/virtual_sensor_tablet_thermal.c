@@ -37,7 +37,7 @@
 #include <linux/amzn_sign_of_life.h>
 #endif
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 #include <linux/metricslog.h>
 #define VIRTUAL_SENSOR_METRICS_STR_LEN 128
 /*
@@ -251,7 +251,7 @@ static int wpc_online_event(struct notifier_block *nb, unsigned long event, void
 
 #endif /* CONFIG_THERMAL_FOD is defined */
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 unsigned long get_virtualsensor_temp(void)
 {
 	return virtual_sensor_temp / 1000;
@@ -309,10 +309,15 @@ static int virtual_sensor_thermal_get_temp(struct thermal_zone_device *thermal,
 	long temp = 0;
 	long tempv = 0;
 	int alpha, offset, weight;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	char buf[VIRTUAL_SENSOR_METRICS_STR_LEN];
 	const struct amazon_logger_ops *amazon_logger = amazon_logger_ops_get();
 #endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char key_buf[128];
+#endif
+
 #ifdef CONFIG_THERMAL_FOD
 	int wpc_ntc_temp = 0;
 #endif
@@ -336,7 +341,7 @@ static int virtual_sensor_thermal_get_temp(struct thermal_zone_device *thermal,
 	}
 #endif
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	atomic_inc(&tzone->query_count);
 #endif
 
@@ -354,6 +359,23 @@ static int virtual_sensor_thermal_get_temp(struct thermal_zone_device *thermal,
 			if (amazon_logger && amazon_logger->log_to_metrics) {
 				amazon_logger->log_to_metrics(ANDROID_LOG_INFO,
 				"ThermalEvent", buf);
+			}
+		}
+#endif
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		/*
+		 * Log in metrics around every 1 hour normally
+		 * and 3 mins wheny throttling
+		 */
+		if (!(atomic_read(&tzone->query_count) & tzone->mask)) {
+			snprintf(key_buf, 128, "%s_%s_temp", thermal->type, tdev->name);
+			if (amazon_logger && amazon_logger->log_to_metrics) {
+				amazon_logger->minerva_counter_to_vitals(ANDROID_LOG_INFO,
+					VITALS_THERMAL_GROUP_ID, VITALS_THERMAL_SENSOR_SCHEMA_ID,
+					"thermal", "thermal", "thermalsensor",
+					key_buf, temp, "temp", NULL, VITALS_NORMAL,
+					NULL, NULL);
 			}
 		}
 #endif
@@ -419,8 +441,30 @@ static int virtual_sensor_thermal_get_temp(struct thermal_zone_device *thermal,
 		tzone->mask = VIRTUAL_SENSOR_UNTHROTTLE_TIME_MASK;
 #endif
 
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	/*
+	 * Log in metrics around every 1 hour normally
+	 * and 3 mins wheny throttling
+	 */
+
+	if (!(atomic_read(&tzone->query_count) & tzone->mask)) {
+		snprintf(key_buf, 128, "%s_temp", thermal->type);
+		if (amazon_logger && amazon_logger->log_to_metrics) {
+				amazon_logger->minerva_counter_to_vitals(ANDROID_LOG_INFO,
+					VITALS_THERMAL_GROUP_ID, VITALS_THERMAL_SENSOR_SCHEMA_ID,
+					"thermal", "thermal", "thermalsensor",
+					key_buf, tempv, "temp", NULL, VITALS_NORMAL,
+					NULL, NULL);
+		}
+	}
+	if (tempv > pdata->trips[0].temp)
+		tzone->mask = VIRTUAL_SENSOR_THROTTLE_TIME_MASK;
+	else
+		tzone->mask = VIRTUAL_SENSOR_UNTHROTTLE_TIME_MASK;
+#endif
+
 	*t = (unsigned long)tempv;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	virtual_sensor_temp = (unsigned long)tempv;
 #endif
 
@@ -1251,7 +1295,7 @@ static int virtual_sensor_thermal_probe(struct platform_device *pdev)
 	}
 	tzone->tz->trips = pdata->num_trips;
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	tzone->mask = VIRTUAL_SENSOR_UNTHROTTLE_TIME_MASK;
 #endif
 	ret = virtual_sensor_create_sysfs(tzone);

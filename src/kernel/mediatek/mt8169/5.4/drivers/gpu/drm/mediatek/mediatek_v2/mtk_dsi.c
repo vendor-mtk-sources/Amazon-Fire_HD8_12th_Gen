@@ -815,6 +815,9 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 	int ret;
 	unsigned int data_rate;
 	long mipi_tx_rate;
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char buf[METRICS_STR_LEN];
+#endif
 
 	DDPDBG("%s+\n", __func__);
 	if (++dsi->clk_refcnt != 1)
@@ -826,6 +829,13 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 	pr_notice("set mipitx's data rate: %lu Hz\n", mipi_tx_rate);
 
 	if (dsi->panel) {
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_metrics_log(buf, METRICS_STR_LEN,"%s:%s:100:%s,%s,%s,%s,lcm_state=lcm_resume;SY,"
+		"ESD_Recovery=0;IN:us-east-1",
+		METRICS_LCD_GROUP_ID, METRICS_LCD_SCHEMA_ID,
+		PREDEFINED_ESSENTIAL_KEY, PREDEFINED_MODEL_KEY,
+		PREDEFINED_TZ_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY);
+#endif
 		ret = drm_panel_prepare_power(dsi->panel);
 		if (ret < 0) {
 			DRM_ERROR("failed to prepare power the panel\n");
@@ -1494,6 +1504,10 @@ static irqreturn_t mtk_dsi_irq(int irq, void *dev_id)
 
 static void mtk_dsi_poweroff(struct mtk_dsi *dsi)
 {
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char buf[METRICS_STR_LEN];
+#endif
+
 	DDPDBG("%s +\n", __func__);
 	if (dsi->clk_refcnt == 0) {
 		DDPAEE("%s:%d, invalid cnt:%d\n",
@@ -1509,6 +1523,13 @@ static void mtk_dsi_poweroff(struct mtk_dsi *dsi)
 	pm_runtime_put_sync(dsi->host.dev);
 
 	if (dsi->panel) {
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_metrics_log(buf, METRICS_STR_LEN,"%s:%s:100:%s,%s,%s,%s,lcm_state=lcm_suspend;SY,"
+		"ESD_Recovery=0;IN:us-east-1",
+		METRICS_LCD_GROUP_ID, METRICS_LCD_SCHEMA_ID,
+		PREDEFINED_ESSENTIAL_KEY, PREDEFINED_MODEL_KEY,
+		PREDEFINED_TZ_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY);
+#endif
 		if (drm_panel_unprepare_power(dsi->panel))
 			DRM_ERROR("failed to unprepare power the panel\n");
 	}

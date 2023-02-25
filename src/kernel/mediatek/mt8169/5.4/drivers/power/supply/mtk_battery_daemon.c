@@ -16,6 +16,7 @@
 #include "mtk_battery_daemon.h"
 #include "mtk_battery.h"
 #include "battery_metrics.h"
+#include "mtk_charger.h"
 
 #if IS_ENABLED(CONFIG_PMIC_LBAT_SERVICE)
 #include <pmic_lbat_service.h>
@@ -2156,6 +2157,120 @@ static ssize_t cell_vendor_name_show(struct device *dev,
 		return scnprintf(buf, PAGE_SIZE, "Invalid\n");
 }
 
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+static ssize_t use_aging_zcv_store(
+	struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t size)
+{
+	unsigned long val = 0;
+	int ret;
+	struct mtk_battery *gm;
+
+	bm_err("%s\n", __func__);
+	gm = get_mtk_battery();
+	if (buf != NULL && size != 0 && gm != NULL) {
+		bm_err("[%s] buf is %s\n", __func__, buf);
+		ret = kstrtoul(buf, 10, &val);
+		if (ret < 0) {
+			bm_err("[%s] err, ret is %d\n", __func__, ret);
+			return ret;
+		}
+
+		if ((val < 3) && ((int)val > gm->use_aging_zcv))
+			wakeup_fg_algo_cmd(gm, FG_INTR_KERNEL_CMD,
+				FG_KERNEL_CMD_USE_AGING_ZCV, val);
+		else
+			return size;
+
+		bm_err("[%s] Use aging zcv = %d\n", __func__, (int)val);
+	}
+
+	return size;
+}
+
+static ssize_t use_aging_zcv_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct mtk_battery *gm;
+
+	bm_err("%s\n", __func__);
+	gm = get_mtk_battery();
+	if (gm == NULL) {
+		bm_err("%s get gm fail\n", __func__);
+		return 0;
+	}
+
+	return sprintf(buf, "%d\n", gm->use_aging_zcv);
+}
+
+static ssize_t disable_aging_zcv_store(
+	struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t size)
+{
+	unsigned long val = 0;
+	int ret;
+	struct mtk_battery *gm;
+
+	bm_err("%s\n", __func__);
+	gm = get_mtk_battery();
+	if (buf != NULL && size != 0 && gm != NULL) {
+		bm_err("[%s] buf is %s\n", __func__, buf);
+		ret = kstrtoul(buf, 10, &val);
+		if (val < 0) {
+			bm_err("[%s] val is %d ??\n", __func__, (int)val);
+			val = 0;
+		}
+
+		if (val == 1) {
+			val = 0;
+			wakeup_fg_algo_cmd(gm, FG_INTR_KERNEL_CMD,
+				FG_KERNEL_CMD_USE_AGING_ZCV, val);
+		} else
+			return size;
+
+		bm_err( "[%s] Use aging zcv = %d\n", __func__, (int)val);
+	}
+
+	return size;
+}
+
+static ssize_t disable_aging_zcv_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct mtk_battery *gm;
+
+	bm_err("%s\n", __func__);
+	gm = get_mtk_battery();
+	if (gm == NULL) {
+		bm_err("%s get gm fail\n", __func__);
+		return 0;
+	}
+
+	return sprintf(buf, "%d\n", gm->use_aging_zcv);
+}
+
+static ssize_t dump_log_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int val = 201;
+	struct mtk_battery *gm;
+
+	bm_err("%s\n", __func__);
+	gm = get_mtk_battery();
+	if (gm == NULL) {
+		bm_err("%s get gm fail\n", __func__);
+		return 0;
+	}
+	wakeup_fg_algo_cmd(gm, FG_INTR_KERNEL_CMD, FG_KERNEL_CMD_DUMP_LOG, val);
+
+	return 0;
+}
+
+static DEVICE_ATTR_RW(use_aging_zcv);
+static DEVICE_ATTR_RW(disable_aging_zcv);
+static DEVICE_ATTR_RO(dump_log);
+#endif
+
 static DEVICE_ATTR_RW(Battery_Temperature);
 static DEVICE_ATTR_RW(UI_SOC);
 static DEVICE_ATTR_RW(uisoc_update_type);
@@ -2248,6 +2363,20 @@ static int mtk_battery_setup_files(struct platform_device *pdev)
 	ret = device_create_file(&(pdev->dev), &dev_attr_fake_rtc_soc);
 	if (ret)
 		goto _out;
+
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	ret = device_create_file(&(pdev->dev), &dev_attr_use_aging_zcv);
+	if (ret)
+		goto _out;
+
+	ret = device_create_file(&(pdev->dev), &dev_attr_disable_aging_zcv);
+	if (ret)
+		goto _out;
+
+	ret = device_create_file(&(pdev->dev), &dev_attr_dump_log);
+	if (ret)
+		goto _out;
+#endif
 
 _out:
 	return ret;
@@ -3756,9 +3885,22 @@ static void mtk_battery_daemon_handler(struct mtk_battery *gm, void *nl_data,
 	break;
 	case FG_DAEMON_CMD_DUMP_LOG:
 	{
-		bm_debug("[K]FG_DAEMON_CMD_DUMP_LOG %d %d %d\n",
-			msg->fgd_subcmd, msg->fgd_subcmd_para1,
-			(int)strlen(&msg->fgd_data[0]));
+		int len, size;
+		int offset = 0;
+		char proc_log[520];
+
+		size = (int)strlen(&msg->fgd_data[0]);
+		bm_err("[K]FG_DAEMON_CMD_DUMP_LOG %d %d %d\n", msg->fgd_subcmd,
+			msg->fgd_subcmd_para1, size);
+
+		while (size > 0) {
+			len = size > 512 ? 512 : size;
+			memcpy(proc_log, &msg->fgd_data[offset], len);
+			proc_log[len] = '\0';
+			size -= len;
+			offset += len;
+			bm_err("%s", proc_log);
+		}
 	}
 	break;
 	case FG_DAEMON_CMD_GET_SHUTDOWN_CAR:
@@ -4002,7 +4144,15 @@ static void mtk_battery_daemon_handler(struct mtk_battery *gm, void *nl_data,
 			&ret_msg->fgd_data[0]);
 	}
 	break;
-
+#ifdef CONFIG_MTK_USE_AGING_ZCV
+	case FG_DAEMON_CMD_SEND_FG_USE_2ND_ZCV:
+	{
+		memcpy(&int_value, &msg->fgd_data[0], sizeof(int_value));
+		gm->use_aging_zcv = int_value;
+		bm_err("use_aging_zcv %d\n", gm->use_aging_zcv);
+	}
+	break;
+#endif
 	default:
 		badcmd++;
 		bm_err("[%s]bad cmd:0x%x times:%d\n", __func__,
@@ -5058,6 +5208,20 @@ int mtk_battery_daemon_init(struct platform_device *pdev)
 		NULL, bat_temp_irq,
 		IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
 		"mtk_bat_tmp_l",
+		gm);
+
+		ret = devm_request_threaded_irq(&gm->gauge->pdev->dev,
+		gm->gauge->irq_no[VBAT_H_IRQ],
+		NULL, vbat_h_irq,
+		IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+		"mtk_gauge_vbat_high",
+		gm);
+
+		ret = devm_request_threaded_irq(&gm->gauge->pdev->dev,
+		gm->gauge->irq_no[VBAT_L_IRQ],
+		NULL, vbat_l_irq,
+		IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+		"mtk_gauge_vbat_low",
 		gm);
 	}
 

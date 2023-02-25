@@ -588,7 +588,7 @@ int ged_bridge_gpu_tuner_status(
 		GPU_TUNER_ERROR("[%s] invalid parameter\n", __func__);
 		return GED_ERROR_INVALID_PARAMS;
 	}
-
+	in->name[GPU_TUNER_BUF_NAME_LEN - 1] = '\0';
 	GPU_TUNER_DEBUG("[%s][IN] name(%s)\n", __func__, in->name);
 
 	item.status.feature = 0;

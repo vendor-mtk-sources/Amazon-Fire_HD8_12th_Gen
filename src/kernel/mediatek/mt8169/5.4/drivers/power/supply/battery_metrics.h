@@ -8,7 +8,7 @@ enum {
 	METRICS_FAULT_SAFETY_TIMEOUT = 3,
 };
 
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 int bat_metrics_chrdet(u32 chr_type);
 int bat_metrics_chg_fault(u8 fault_type);
 int bat_metrics_chg_state(u32 chg_sts);

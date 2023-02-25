@@ -33,7 +33,7 @@
 #endif
 #include <linux/dma-mapping.h>
 #include "dbmdx-interface.h"
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 /*add include file for metrics logging through logcat_vital-->KDM*/
 #include  <linux/metricslog.h>
 #endif
@@ -63,6 +63,10 @@
 #define USE_PERIODS_MAX		1024
 /* 3 seconds + 4 bytes for position */
 #define REAL_BUFFER_SIZE	(MAX_BUFFER_SIZE + 4)
+
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#define DBMDX_METRICS_LOG_MAX_SIZE (512)
+#endif
 
 struct snd_dbmdx {
 	struct snd_soc_card *card;
@@ -488,6 +492,9 @@ out:
 
 static int dbmdx_pcm_open(struct snd_pcm_substream *substream)
 {
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
+#endif
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 #ifdef SND_SOC_COMPONENT
@@ -571,9 +578,19 @@ static int dbmdx_pcm_open(struct snd_pcm_substream *substream)
 	p->fgMetricLogPrint = false;
 	p->StreamOpenTime = ktime_get();
 	p->dspStreamDuration = 0;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+		"%s:%s:100:%s,%s,%s,DSP_IRQ=false;BO,DSP_RESET=false;BO,"
+		"DSP_WDT=false;BO,DSP_DATA_PROCESS_BEGIN=true;BO:us-east-1",
+		METRICS_DSP_GROUP_ID, METRICS_DSP_VOICE_SCHEMA_ID,
+		PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY);
+	minerva_counter_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+		VITALS_DSP_COUNTER_SCHEMA_ID, "Kernel", "Kernel",
+		"DBMD4_DSP_metrics_count", "DSP_DATA_PROCESS_BEGIN", 1, "count",
+		NULL, VITALS_NORMAL, NULL, NULL);
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 	log_counter_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel",
-			"DBMD4_DSP_metrics_count", "DSP_DATA_PROCESS_BEGIN", 1, "count", NULL, VITALS_NORMAL);
+		"DBMD4_DSP_metrics_count", "DSP_DATA_PROCESS_BEGIN", 1, "count", NULL, VITALS_NORMAL);
 #endif
 
 	return 0;
@@ -655,6 +672,9 @@ static int dbmdx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static int dbmdx_pcm_close(struct snd_pcm_substream *substream)
 {
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+	char dbmdx_metrics_log_buf[DBMDX_METRICS_LOG_MAX_SIZE];
+#endif
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dbmdx_runtime_data *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -668,7 +688,7 @@ static int dbmdx_pcm_close(struct snd_pcm_substream *substream)
 #ifndef TIMER_LIST_PTR
 	struct timer_list *timer = prtd->timer;
 #endif /* !TIMER_LIST_PTR */
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	ktime_t Current;
 #endif
 
@@ -692,14 +712,28 @@ static int dbmdx_pcm_close(struct snd_pcm_substream *substream)
 
 	if (p->fgMetricLogPrint == false) {
 		p->fgMetricLogPrint = true;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 		Current = ktime_get();
+#if IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+		minerva_metrics_log(dbmdx_metrics_log_buf, DBMDX_METRICS_LOG_MAX_SIZE,
+			"%s:%s:100:%s,%s,%s,DSP_DATA_CATCH_UP_FINISH=%d;IN,"
+			"DSP_DATA_PROCESS_FINISH=%d;IN,DSP_DATA_CANCEL=%d;IN:us-east-1",
+			METRICS_DSP_GROUP_ID, METRICS_DSP_CATCH_SCHEMA_ID,
+			PREDEFINED_ESSENTIAL_KEY, PREDEFINED_DEVICE_ID_KEY, PREDEFINED_DEVICE_LANGUAGE_KEY,
+			-1, -1, ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime));
+		minerva_timer_to_vitals(ANDROID_LOG_INFO, VITALS_DSP_GROUP_ID,
+			VITALS_DSP_TIMER_SCHEMA_ID, "Kernel", "Kernel",
+			"DBMD4_DSP_metrics_time", "DSP_DATA_CANCEL",
+			ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime), "ms",
+			VITALS_NORMAL, NULL, NULL);
+#elif IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
 		log_timer_to_vitals(ANDROID_LOG_INFO, "Kernel", "Kernel",
 			"DBMD4_DSP_metrics_time", "DSP_DATA_CANCEL",
-			ktime_to_ms(Current)  - ktime_to_ms(p->StreamOpenTime),
+			ktime_to_ms(Current) - ktime_to_ms(p->StreamOpenTime),
 			"ms", VITALS_NORMAL);
 #endif
-}
+#endif
+	}
 
 #ifdef SND_SOC_COMPONENT
 	dbmdx_component_unlock(component);

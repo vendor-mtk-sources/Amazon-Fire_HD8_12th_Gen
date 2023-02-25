@@ -785,6 +785,14 @@ config MTK_CHARGER
 	  maintains charging status.
 	  Say no if not using MediaTek charging driver.
 
+config MTK_USE_AGING_ZCV
+	bool "MediaTek Switch ZCV table"
+	default n
+	help
+	  Say Y to enable
+	  Allow it to change to another ZCV table when battery aging
+	  Need to cooperate with GM30
+
 config WPC_IDTP922X
 	tristate "idtp922X wireless power driver"
 	depends on I2C

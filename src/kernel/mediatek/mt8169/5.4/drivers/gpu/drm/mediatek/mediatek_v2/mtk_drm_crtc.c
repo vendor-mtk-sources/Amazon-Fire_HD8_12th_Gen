@@ -4096,6 +4096,7 @@ void mtk_crtc_disable_secure_state(struct drm_crtc *crtc)
 	enum CMDQ_SEC_SCENARIO sec_scenario = CMDQ_MAX_SEC_COUNT;
 	//struct mtk_ddp_comp *ddp_first_comp;
 	u64 sec_engine = 0;
+	u64 dapc_engine = 0;
 #endif
 
 	DDPINFO("%s+ crtc%d\n", __func__, drm_crtc_index(crtc));
@@ -4115,6 +4116,7 @@ void mtk_crtc_disable_secure_state(struct drm_crtc *crtc)
 	else if (drm_crtc_index(crtc) == 2) {
 		sec_scenario = CMDQ_SEC_DISP_SUB_DISABLE_SECURE_PATH;
 		sec_engine |= (1ULL << CMDQ_SEC_DISP_WDMA0);
+		dapc_engine |= (1ULL << CMDQ_SEC_DISP_WDMA0);
 	}
 	/*
 	 * ddp_first_comp = mtk_crtc_get_comp(&(mtk_crtc->base), DDP_FIRST_PATH, 0);
@@ -4124,7 +4126,7 @@ void mtk_crtc_disable_secure_state(struct drm_crtc *crtc)
 	 */
 
 	cmdq_sec_pkt_set_data(cmdq_handle,
-		0, sec_engine, sec_scenario,
+		dapc_engine, sec_engine, sec_scenario,
 		CMDQ_METAEX_NONE);
 #else
 	cmdq_sec_pkt_set_data(cmdq_handle,
@@ -4146,6 +4148,7 @@ struct cmdq_pkt *mtk_crtc_gce_commit_begin(struct drm_crtc *crtc)
 #ifdef MTK_DRM_SEC_WFD_SUPPORT
 	enum CMDQ_SEC_SCENARIO sec_scenario = CMDQ_MAX_SEC_COUNT;
 	u64 sec_engine = 0;
+	u64 dapc_engine = 0;
 	//struct mtk_ddp_comp *ddp_first_comp;
 #endif
 
@@ -4181,9 +4184,10 @@ struct cmdq_pkt *mtk_crtc_gce_commit_begin(struct drm_crtc *crtc)
 		else if (drm_crtc_index(crtc) == 2) {
 			sec_scenario = CMDQ_SEC_SUB_MEMOUT;
 			sec_engine |= (1ULL << CMDQ_SEC_DISP_WDMA0);
+			dapc_engine |= (1ULL << CMDQ_SEC_DISP_WDMA0);
 		}
-		// TODO: need modify dapc engine when DAPC is enable
-		cmdq_sec_pkt_set_data(cmdq_handle, 0,
+
+		cmdq_sec_pkt_set_data(cmdq_handle, dapc_engine,
 			sec_engine,
 			sec_scenario,
 			CMDQ_METAEX_NONE);
@@ -6219,6 +6223,9 @@ int mtk_crtc_path_switch(struct drm_crtc *crtc, unsigned int ddp_mode,
 	struct mtk_ddp_config cfg;
 	int index = drm_crtc_index(crtc);
 	bool need_wait;
+
+	if (ddp_mode > DDP_NO_USE)	/* ddp_mode wrong */
+		return 0;
 
 	CRTC_MMP_EVENT_START(index, path_switch, mtk_crtc->ddp_mode,
 			ddp_mode);

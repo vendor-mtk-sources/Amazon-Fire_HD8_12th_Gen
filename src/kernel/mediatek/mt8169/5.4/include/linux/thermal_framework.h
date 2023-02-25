@@ -180,7 +180,7 @@ struct virtual_sensor_thermal_zone {
 	struct thermal_zone_device *tz;
 	struct work_struct therm_work;
 	struct vs_thermal_platform_data *pdata;
-#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG)
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
 	atomic_t query_count;
 	unsigned int mask;
 #endif

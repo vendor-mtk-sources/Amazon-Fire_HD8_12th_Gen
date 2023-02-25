@@ -17,6 +17,10 @@
 #include "mtk_drm_ddp.h"
 #include "mtk_drm_session.h"
 #include "mtk_drm_helper.h"
+#if IS_ENABLED(CONFIG_AMAZON_METRICS_LOG) || IS_ENABLED(CONFIG_AMAZON_MINERVA_METRICS_LOG)
+#include <linux/metricslog.h>
+#define METRICS_STR_LEN 512
+#endif
 
 #define MAX_CRTC 3
 #define MAX_CONNECTOR 3

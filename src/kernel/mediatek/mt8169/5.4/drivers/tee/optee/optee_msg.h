@@ -419,6 +419,17 @@ struct optee_msg_arg {
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
 
+#ifdef CONFIG_OPTEE_NEW_RPC_COMMAND_ID_SET
+/*
+ * Clock control
+ */
+#define OPTEE_MSG_RPC_CMD_KREE_CLK_CTRL	0x101
+
+/*
+ * Flush log to kree console
+ */
+#define OPTEE_MSG_RPC_CMD_KREE_CONSOLE_FLUSH	0x100
+#else
 /*
  * Clock control
  */
@@ -428,5 +439,5 @@ struct optee_msg_arg {
  * Flush log to kree console
  */
 #define OPTEE_MSG_RPC_CMD_KREE_CONSOLE_FLUSH	11
-
+#endif
 #endif /* _OPTEE_MSG_H */

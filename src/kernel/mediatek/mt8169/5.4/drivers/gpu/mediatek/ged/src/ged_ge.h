@@ -11,6 +11,7 @@
 
 /* Must be the same as region_num in gralloc_extra/ge_config.h */
 #define GE_ALLOC_STRUCT_NUM 14
+#define GE_MAX_REGION_SIZE 8192
 
 GED_ERROR ged_ge_init(void);
 int ged_ge_exit(void);
