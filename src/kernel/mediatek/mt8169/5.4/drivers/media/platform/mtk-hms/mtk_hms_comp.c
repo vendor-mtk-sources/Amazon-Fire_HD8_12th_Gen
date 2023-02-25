@@ -53,6 +53,7 @@ int mtk_hms_comp_get_id(struct device *dev, struct device_node *node,
 void mtk_hms_comp_clock_on(struct device *dev, struct mtk_hms_comp *comp)
 {
 	int i;
+	int ret;
 
 	if (!comp)
 		return;
@@ -63,7 +64,11 @@ void mtk_hms_comp_clock_on(struct device *dev, struct mtk_hms_comp *comp)
 	for (i = 0; i < ARRAY_SIZE(comp->clk); i++) {
 		if (IS_ERR(comp->clk[i]))
 			continue;
-		clk_prepare_enable(comp->clk[i]);
+		ret = clk_prepare_enable(comp->clk[i]);
+		if (ret) {
+			pr_info("clk_prepare_enable fail!\n");
+			continue;
+		}
 	}
 }
 

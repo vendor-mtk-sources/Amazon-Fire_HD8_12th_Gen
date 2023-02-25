@@ -565,7 +565,7 @@ static int mtk_dai_tdm_cal_mclk(struct mtk_base_afe *afe,
 
 	if (apll_rate % freq != 0) {
 		dev_info(afe->dev,
-			 "%s(), APLL cannot generate %d Hz", __func__, freq);
+			 "%s(), APLL cannot generate %d Hz\n", __func__, freq);
 		return -EINVAL;
 	}
 
@@ -582,36 +582,53 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8169_afe_private *afe_priv = afe->platform_priv;
 	int tdm_id = dai->id;
-	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[tdm_id];
-	struct mtk_clk_ao_attr *dai_attr = &afe_priv->clk_ao_data[tdm_id];
-	unsigned int tdm_mode = tdm_priv->tdm_mode;
-	unsigned int data_mode = tdm_priv->data_mode;
+	struct mtk_afe_tdm_priv *tdm_priv = NULL;
+	struct mtk_clk_ao_attr *dai_attr = NULL;
+	unsigned int tdm_mode = 0;
+	unsigned int data_mode = 0;
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
 	snd_pcm_format_t format = params_format(params);
 	unsigned int bit_width =
 		snd_pcm_format_physical_width(format);
-	unsigned int tdm_channels = (data_mode == TDM_DATA_ONE_PIN) ?
-		mt8169_get_tdm_ch_per_sdata(tdm_mode, channels) : 2;
+	unsigned int tdm_channels = 0;
 	unsigned int tdm_con = 0;
-	bool slave_mode = tdm_priv->slave_mode;
-	bool lrck_inv = tdm_priv->lrck_invert;
-	bool bck_inv = tdm_priv->bck_invert;
+	bool slave_mode = 0;
+	bool lrck_inv = 0;
+	bool bck_inv = 0;
 	unsigned int ctrl_reg;
 	unsigned int ctrl_mask;
 	unsigned int tran_rate;
 	unsigned int tran_relatch_rate;
 
+	if (tdm_id < 0 || tdm_id >= MT8169_DAI_NUM) {
+		dev_info(afe->dev, "%s(), wrong tdm_id: %d\n", __func__, tdm_id);
+		return -EINVAL;
+	}
+
+	tdm_priv = afe_priv->dai_priv[tdm_id];
+	dai_attr = &afe_priv->clk_ao_data[tdm_id];
+
 	if (dai_attr->clk_ao_enable && dai_attr->bclk_ao && dai_attr->lrck_ao) {
-		dev_info(afe->dev, "%s(), clk_ao_enable = 1, no need reconfig",
+		dev_info(afe->dev, "%s(), clk_ao_enable = 1, no need reconfig\n",
 			 __func__);
 		return 0;
 	}
 
-	if (tdm_priv)
+	if (tdm_priv) {
+		tdm_mode = tdm_priv->tdm_mode;
+		data_mode = tdm_priv->data_mode;
+		slave_mode = tdm_priv->slave_mode;
+		lrck_inv = tdm_priv->lrck_invert;
+		bck_inv = tdm_priv->bck_invert;
 		tdm_priv->rate = rate;
-	else
-		dev_info(afe->dev, "%s(), tdm_priv == NULL", __func__);
+	} else {
+		dev_info(afe->dev, "%s(), tdm_priv == NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	tdm_channels = (data_mode == TDM_DATA_ONE_PIN) ?
+		mt8169_get_tdm_ch_per_sdata(tdm_mode, channels) : 2;
 
 	tran_rate = mt8169_rate_transform(afe->dev, rate, dai->id);
 	tran_relatch_rate = mt8169_tdm_relatch_rate_transform(afe->dev, rate);

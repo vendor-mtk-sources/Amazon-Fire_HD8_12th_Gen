@@ -651,7 +651,8 @@ static signed int WPE_probe(struct platform_device *pDev)
 		for (dev_i = 0 ; dev_i < WPE_DEV_NUM ; dev_i++) {
 			char wpe_name[WPE_DEV_NAME_LEN + 5] /*= {0}*/;
 
-			sprintf(wpe_name, WPE_DEV_NAME);
+			if (sprintf(wpe_name, WPE_DEV_NAME) < 0)
+				LOG_ERR("sprintf fail");
 			strcat(wpe_name, (dev_i == 0)?"":"-b");
 
 			dev = device_create(pWPEClass, NULL,

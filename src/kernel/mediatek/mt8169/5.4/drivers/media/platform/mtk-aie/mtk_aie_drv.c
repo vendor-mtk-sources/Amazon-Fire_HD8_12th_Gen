@@ -306,18 +306,16 @@ static int aie_imem_alloc(struct mtk_aie_dev *fd, u32 size, struct imem_buf_info
 {
 	struct device *dev = fd->dev;
 	void *va;
-	dma_addr_t dma_handle;
 
-	va = dma_alloc_coherent(dev, size, &dma_handle, GFP_KERNEL);
+	va = dma_alloc_coherent(dev, size, &bufinfo->pa, GFP_KERNEL);
 	if (!va)
 		return -ENOMEM;
 
 	bufinfo->va = va;
-	bufinfo->pa = dma_handle;
 	bufinfo->size = size;
 
 	dev_dbg(fd->dev, "%s: vAddr(0x%p)(0x%llx), pAddr(0x%pad), size(%d)\n",
-		__func__, va, (u64 *)va, &dma_handle, size);
+		__func__, va, (u64 *)va, &bufinfo->pa, size);
 
 	return 0;
 }
@@ -706,10 +704,11 @@ static int aie_alloc_output_buf(struct mtk_aie_dev *fd)
 	return ret;
 }
 
-static void aie_alloc_normal(struct mtk_aie_dev *fd, int start, int end)
+static void aie_alloc_normal(struct mtk_aie_dev *fd, unsigned int start,
+			     unsigned int end)
 {
-	int i, j;
-	int pi, pj;
+	unsigned int i, j;
+	unsigned int pi, pj;
 	struct aie_static_info *pstv;
 
 	pstv = &fd->st_info;
@@ -728,11 +727,14 @@ static void aie_alloc_normal(struct mtk_aie_dev *fd, int start, int end)
 	}
 }
 
-static void aie_alloc_special(struct mtk_aie_dev *fd, int idx)
+static void aie_alloc_special(struct mtk_aie_dev *fd, unsigned int idx)
 {
 	struct aie_static_info *pstv;
 
 	pstv = &fd->st_info;
+
+	if (idx == 0)
+		return;
 
 	fd->dma_para->fd_out_hw_pa[idx][0] =
 		fd->dma_para->fd_out_hw_pa[idx - 1][1] + pstv->fd_wdma_size[idx - 1][1];
@@ -761,7 +763,8 @@ static void aie_alloc_special(struct mtk_aie_dev *fd, int idx)
 		fd->dma_para->fd_out_hw_pa[idx][1] + 4 * pstv->out_xsize_plus_1[idx + 2];
 }
 
-static void aie_alloc_xsize(struct mtk_aie_dev *fd, int idx, int pi, int pj)
+static void aie_alloc_xsize(struct mtk_aie_dev *fd, unsigned int idx,
+			    unsigned int pi, unsigned int pj)
 {
 	struct aie_static_info *pstv;
 
@@ -1141,8 +1144,12 @@ static int aie_load_fw(struct mtk_aie_dev *fd)
 	for (i = 0; i < fd_loop_num; i++) {
 		for (j = 0; j < kernel_RDMA_RA_num; j++) {
 			if (fd_ker_rdma_size[i][j]) {
-				sprintf(name, "aie_fw/kernel/aie_fd_kernel_bias_loop%02d_%d.bin",
-					i, j);
+				ret = sprintf(name,
+					      "aie_fw/kernel/aie_fd_kernel_bias_loop%02d_%d.bin",
+					      i, j);
+				if (ret < 0)
+					return ret;
+
 				ret = aie_copy_fw(fd, name, fd->dma_para->fd_kernel_va[i][j],
 						  fd_ker_rdma_size[i][j]);
 				if (ret)
@@ -1153,7 +1160,12 @@ static int aie_load_fw(struct mtk_aie_dev *fd)
 
 	for (i = 0; i < attr_loop_num; i++) {
 		for (j = 0; j < kernel_RDMA_RA_num; j++) {
-			sprintf(name, "aie_fw/kernel/aie_attr_kernel_bias_loop%02d_%d.bin", i, j);
+			ret = sprintf(name,
+				      "aie_fw/kernel/aie_attr_kernel_bias_loop%02d_%d.bin",
+				      i, j);
+			if (ret < 0)
+				return ret;
+
 			ret = aie_copy_fw(fd, name, fd->dma_para->attr_kernel_va[i][j],
 					  attr_ker_rdma_size[i][j]);
 			if (ret)
@@ -1294,7 +1306,8 @@ static int aie_config_y2r(struct mtk_aie_dev *fd, struct aie_enq_info *aie_cfg, 
 		src_crop_h = fd->attr_para->crop_height[fd->attr_para->w_idx];
 		yuv2rgb_cfg = (u32 *)fd->base_para->attr_yuv2rgb_cfg_va[fd->attr_para->w_idx];
 		pym0_out_w = ATTR_MODE_PYRAMID_WIDTH;
-	}
+	} else
+		return -EINVAL;
 
 	pym0_out_h = pym0_out_w * src_crop_h / src_crop_w;
 
@@ -1455,7 +1468,8 @@ static int aie_config_rs(struct mtk_aie_dev *fd, struct aie_enq_info *aie_cfg)
 	} else if (aie_cfg->sel_mode == 1) {
 		src_crop_w = fd->attr_para->crop_width[fd->attr_para->w_idx];
 		src_crop_h = fd->attr_para->crop_height[fd->attr_para->w_idx];
-	}
+	} else
+		return -EINVAL;
 
 	rs_cfg = (u32 *)fd->base_para->fd_rs_cfg_va;
 
@@ -1538,6 +1552,8 @@ static int aie_config_network(struct mtk_aie_dev *fd, struct aie_enq_info *aie_c
 	u32 src_crop_w = 0;
 	u32 src_crop_h = 0;
 	struct aie_static_info *pstv;
+	u32 cal_x;
+	u32 cal_y;
 
 	pstv = &fd->st_info;
 
@@ -1547,7 +1563,8 @@ static int aie_config_network(struct mtk_aie_dev *fd, struct aie_enq_info *aie_c
 	} else if (aie_cfg->sel_mode == 1) {
 		src_crop_w = fd->attr_para->crop_width[fd->attr_para->w_idx];
 		src_crop_h = fd->attr_para->crop_height[fd->attr_para->w_idx];
-	}
+	} else
+		return -EINVAL;
 
 	pyramid0_out_w = fd->base_para->pyramid_width;
 	pyramid0_out_h = pyramid0_out_w * src_crop_h / src_crop_w;
@@ -1653,20 +1670,26 @@ static int aie_config_network(struct mtk_aie_dev *fd, struct aie_enq_info *aie_c
 		}
 
 		if (i == rpn0_loop_num) {
+			cal_x = ((src_crop_w << 10) * 100 /
+				(int)fd->base_para->pyramid_width) >> 10;
+			cal_y = cal_x * 512 / 100;
 			fd_cur_cfg[FD_IMAGE_COORD] =
 				(fd_cur_cfg[FD_IMAGE_COORD] & 0xF) |
-				(((src_crop_w * 1000 / (int)fd->base_para->pyramid_width /
-				100 * 512 / 10) << 4) & 0x7FFF0);
+				((cal_y << 4) & 0x7FFF0);
 		} else if (i == rpn1_loop_num) {
+			cal_x = ((src_crop_w << 10) * 100 /
+				(int)fd->base_para->pyramid_width) >> 10;
+			cal_y = cal_x * 2 * 512 / 100;
 			fd_cur_cfg[FD_IMAGE_COORD] =
 				(fd_cur_cfg[FD_IMAGE_COORD] & 0xF) |
-				(((src_crop_w * 1000 / (int)fd->base_para->pyramid_width *
-				2 / 100 * 512 / 10) << 4) & 0x7FFF0);
+				((cal_y << 4) & 0x7FFF0);
 		} else if (i == rpn2_loop_num) {
+			cal_x = ((src_crop_w << 10) * 100 /
+			(int)fd->base_para->pyramid_width) >> 10;
+			cal_y = cal_x * 4 * 512 / 100;
 			fd_cur_cfg[FD_IMAGE_COORD] =
 				(fd_cur_cfg[FD_IMAGE_COORD] & 0xF) |
-				(((src_crop_w * 1000 / (int)fd->base_para->pyramid_width *
-				4 / 100 * 512 / 10) << 4) & 0x7FFF0);
+				((cal_y << 4) & 0x7FFF0);
 		}
 
 		/* IN_FM_BASE_ADR */
@@ -1724,6 +1747,8 @@ static int aie_config_ext_network(struct mtk_aie_dev *fd, struct aie_enq_info *a
 	struct aie_static_info *pstv;
 	int i, j;
 	const int pos_loop_index[3] = {22, 54, 86};
+	u32 cal_x;
+	u32 cal_y;
 
 	pstv = &fd->st_info;
 
@@ -1768,10 +1793,12 @@ static int aie_config_ext_network(struct mtk_aie_dev *fd, struct aie_enq_info *a
 						   fd_xsize[j] + 1);
 		}
 
+		cal_x = ((src_crop_w << 10) * 100 /
+			(int)fd->base_para->pyramid_width) >> 10;
+		cal_y = (cal_x << (2-i)) * 512 / 100;
 		fd_tbl[i][FD_IMAGE_COORD] =
 			(fd_tbl[i][FD_IMAGE_COORD] & 0xF) |
-			((((src_crop_w * 1000 / (int)fd->base_para->pyramid_width << (2-i)) /
-			100 * 512 / 10) << 4) & 0x7FFF0);
+			((cal_y << 4) & 0x7FFF0);
 	}
 
 	return 0;

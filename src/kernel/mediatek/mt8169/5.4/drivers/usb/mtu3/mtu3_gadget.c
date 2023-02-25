@@ -641,6 +641,18 @@ static int mtu3_gadget_stop(struct usb_gadget *g)
 	return 0;
 }
 
+static void mtu3_gadget_async_callbacks(struct usb_gadget *g, bool enable)
+{
+	struct mtu3 *mtu = gadget_to_mtu3(g);
+	unsigned long flags;
+
+	dev_dbg(mtu->dev, "%s %s\n", __func__, enable ? "en" : "dis");
+
+	spin_lock_irqsave(&mtu->lock, flags);
+	mtu->async_callbacks = enable;
+	spin_unlock_irqrestore(&mtu->lock, flags);
+}
+
 static const struct usb_gadget_ops mtu3_gadget_ops = {
 	.get_frame = mtu3_gadget_get_frame,
 	.wakeup = mtu3_gadget_wakeup,
@@ -648,6 +660,7 @@ static const struct usb_gadget_ops mtu3_gadget_ops = {
 	.pullup = mtu3_gadget_pullup,
 	.udc_start = mtu3_gadget_start,
 	.udc_stop = mtu3_gadget_stop,
+	.udc_async_callbacks = mtu3_gadget_async_callbacks,
 };
 
 static void mtu3_state_reset(struct mtu3 *mtu)
@@ -730,6 +743,7 @@ int mtu3_gadget_setup(struct mtu3 *mtu)
 	mtu->g.speed = USB_SPEED_UNKNOWN;
 	mtu->g.sg_supported = 0;
 	mtu->g.name = MTU3_DRIVER_NAME;
+	mtu->g.irq = mtu->irq;
 	mtu->is_active = 0;
 	mtu->delayed_status = false;
 
@@ -750,7 +764,8 @@ void mtu3_gadget_cleanup(struct mtu3 *mtu)
 void mtu3_gadget_resume(struct mtu3 *mtu)
 {
 	dev_dbg(mtu->dev, "gadget RESUME\n");
-	if (mtu->gadget_driver && mtu->gadget_driver->resume) {
+	if (mtu->async_callbacks && mtu->gadget_driver &&
+	    mtu->gadget_driver->resume) {
 		spin_unlock(&mtu->lock);
 		mtu->gadget_driver->resume(&mtu->g);
 		spin_lock(&mtu->lock);
@@ -761,7 +776,8 @@ void mtu3_gadget_resume(struct mtu3 *mtu)
 void mtu3_gadget_suspend(struct mtu3 *mtu)
 {
 	dev_dbg(mtu->dev, "gadget SUSPEND\n");
-	if (mtu->gadget_driver && mtu->gadget_driver->suspend) {
+	if (mtu->async_callbacks && mtu->gadget_driver &&
+	    mtu->gadget_driver->suspend) {
 		spin_unlock(&mtu->lock);
 		mtu->gadget_driver->suspend(&mtu->g);
 		spin_lock(&mtu->lock);
@@ -772,7 +788,8 @@ void mtu3_gadget_suspend(struct mtu3 *mtu)
 void mtu3_gadget_disconnect(struct mtu3 *mtu)
 {
 	dev_dbg(mtu->dev, "gadget DISCONNECT\n");
-	if (mtu->gadget_driver && mtu->gadget_driver->disconnect) {
+	if (mtu->async_callbacks && mtu->gadget_driver &&
+	    mtu->gadget_driver->disconnect) {
 		spin_unlock(&mtu->lock);
 		mtu->gadget_driver->disconnect(&mtu->g);
 		spin_lock(&mtu->lock);

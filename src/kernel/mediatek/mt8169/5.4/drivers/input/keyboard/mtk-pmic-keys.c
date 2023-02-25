@@ -491,7 +491,9 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	struct mtk_pmic_keys *keys;
 	const struct mtk_pmic_regs *mtk_pmic_regs;
 	struct input_dev *input_dev;
+#ifdef CONFIG_KPD_VOLUME_KEY_SWAP
 	unsigned int volume_swap_key = 0;
+#endif
 	const struct of_device_id *of_id =
 		of_match_device(of_mtk_pmic_keys_match_tbl, &pdev->dev);
 

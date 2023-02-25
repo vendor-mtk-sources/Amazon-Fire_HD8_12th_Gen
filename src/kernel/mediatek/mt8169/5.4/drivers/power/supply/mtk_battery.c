@@ -162,6 +162,9 @@ bool is_algo_active(struct mtk_battery *gm)
 
 bool get_battery_id_status(void)
 {
+#if IS_ENABLED(CONFIG_BATTERY_MT6358)
+	return true;
+#else
 	int ret = 0;
 	int id_volt = 0;
 	struct mtk_battery *gm;
@@ -191,12 +194,16 @@ bool get_battery_id_status(void)
 	}
 
 	return true;
+#endif
 }
 EXPORT_SYMBOL_GPL(get_battery_id_status);
 
 static bool fg_custom_bat_id_from_adc(struct platform_device *dev,
 	struct mtk_battery *gm)
 {
+#if IS_ENABLED(CONFIG_BATTERY_MT6358)
+	return false;
+#else
 	int ret = 0;
 	int id_volt = 0;
 	int id;
@@ -241,6 +248,7 @@ static bool fg_custom_bat_id_from_adc(struct platform_device *dev,
 	}
 
 	return true;
+#endif
 }
 
 static bool fg_custom_bat_id_from_idme(void)
@@ -1121,8 +1129,11 @@ int force_get_tbat(struct mtk_battery *gm, bool update)
 		gm->tbat_precise = gm->fixed_bat_tmp * 10;
 		return gm->fixed_bat_tmp;
 	}
-
+#if IS_ENABLED(CONFIG_BATTERY_MT6358)
+	bat_temperature_val = 25;
+#else
 	bat_temperature_val = force_get_tbat_internal(gm, true);
+#endif
 	gm->cur_bat_temp = bat_temperature_val;
 
 	return bat_temperature_val;
@@ -1548,14 +1559,15 @@ void fg_custom_init_from_header(struct mtk_battery *gm)
 	}
 
 	/* init battery temperature table */
-	gm->rbat.type = 10;
+	gm->rbat.type = 47;
 	gm->rbat.rbat_pull_up_r = RBAT_PULL_UP_R;
 	gm->rbat.rbat_pull_up_volt = RBAT_PULL_UP_VOLT;
 	gm->rbat.bif_ntc_r = BIF_NTC_R;
 
-	if (IS_ENABLED(BAT_NTC_47)) {
-		gm->rbat.type = 47;
+	if (BAT_NTC_10) {
+		gm->rbat.type = 10;
 		gm->rbat.rbat_pull_up_r = RBAT_PULL_UP_R;
+		gm->tmp_table = fg_temp_table_ntc_10;
 	}
 }
 
@@ -2024,10 +2036,15 @@ void fg_custom_init_from_dts(struct platform_device *dev,
 	bm_err("fg active table:%d\n",
 		fg_table_cust_data->active_table_number);
 
-	/* battery temperature  related*/
+	/* battery temperature related */
 	fg_read_dts_val(np, "RBAT_PULL_UP_R", &(gm->rbat.rbat_pull_up_r), 1);
 	fg_read_dts_val(np, "RBAT_PULL_UP_VOLT",
 		&(gm->rbat.rbat_pull_up_volt), 1);
+	fg_read_dts_val(np, "BAT_NTC", &(gm->rbat.type), 1);
+	if (gm->rbat.type == 10) {
+		gm->tmp_table = fg_temp_table_ntc_10;
+		bm_debug("BAT_NTC_%d\n", gm->rbat.type);
+	}
 
 	/* battery temperature, TEMPERATURE_T0 ~ T9 */
 	for (i = 0; i < fg_table_cust_data->active_table_number; i++) {
@@ -2998,12 +3015,23 @@ void fg_update_routine_wakeup(struct mtk_battery *gm)
 enum hrtimer_restart fg_drv_thread_hrtimer_func(struct hrtimer *timer)
 {
 	struct mtk_battery *gm;
+	ktime_t ktime;
 
 	bm_err("%s\n", __func__);
 	gm = container_of(timer,
 		struct mtk_battery, fg_hrtimer);
-	fg_update_routine_wakeup(gm);
-	return HRTIMER_NORESTART;
+	if (!atomic_read(&gm->suspend_active)) {
+		fg_update_routine_wakeup(gm);
+		return HRTIMER_NORESTART;
+	} else {
+		if (bat_get_debug_level() >= BMLOG_DEBUG_LEVEL)
+			ktime = ns_to_ktime(10 * NSEC_PER_SEC);
+		else
+			ktime = ns_to_ktime(60 * NSEC_PER_SEC);
+
+		hrtimer_forward_now(&gm->fg_hrtimer, ktime);
+		return HRTIMER_RESTART;
+	}
 }
 
 void fg_drv_thread_hrtimer_init(struct mtk_battery *gm)
@@ -3815,6 +3843,7 @@ int battery_init(struct platform_device *pdev)
 	kthread_run(battery_update_routine, gm, "battery_thread");
 	fg_drv_thread_hrtimer_init(gm);
 	battery_sysfs_create_group(gm->bs_data.psy);
+	atomic_set(&gm->suspend_active, 0);
 	gm->is_probe_done = true;
 
 	/* for gauge hal hw ocv */

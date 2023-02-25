@@ -291,7 +291,7 @@
 #define OV02B10_RASPITE_SJC_FRONT_SENSOR_ID     0x2d
 #define GC5035_RASPITE_LCE_REAR_SENSOR_ID       0X5036
 #define HI556_RASPITE_HLT_REAR_SENSOR_ID        0x0557
-#define SC201CS_RASPITE_LCE_REAR_SENSOR_ID      0xeb2c
+#define SC202CS_RASPITE_LCE_REAR_SENSOR_ID      0xeb52
 #define GC2365_SENSOR_ID                        0x2365
 #define GC2366_SENSOR_ID                        0x2366
 #define GC2355_SENSOR_ID                        0x2355
@@ -516,7 +516,7 @@
 #define SENSOR_DRVNAME_OV02B10_RASPITE_RAW_SJC_FRONT  "ov02b10_raspite_raw_sjc_front"
 #define SENSOR_DRVNAME_GC5035_RASPITE_RAW_LCE_REAR    "gc5035_raspite_raw_lce_rear"
 #define SENSOR_DRVNAME_HI556_RASPITE_RAW_HLT_REAR     "hi556_raspite_raw_hlt_rear"
-#define SENSOR_DRVNAME_SC201CS_RASPITE_RAW_LCE_REAR   "sc201cs_raspite_raw_lce_rear"
+#define SENSOR_DRVNAME_SC202CS_RASPITE_RAW_LCE_REAR   "sc202cs_raspite_raw_lce_rear"
 #define SENSOR_DRVNAME_GC2365_MIPI_RAW          "gc2365_mipi_raw"
 #define SENSOR_DRVNAME_GC2366_MIPI_RAW          "gc2366_mipi_raw"
 #define SENSOR_DRVNAME_GC2035_YUV               "gc2035_yuv"

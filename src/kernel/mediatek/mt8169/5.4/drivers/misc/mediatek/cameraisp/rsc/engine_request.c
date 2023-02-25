@@ -43,14 +43,12 @@ MODULE_PARM_DESC(egn_debug, " activates debug info");
 
 #define LOG_WRN(format, args...)				 \
 	do {							 \
-		if (egn_debug >= 0)				 \
-			pr_info(MyTag "[%s] " format, __func__, ##args); \
+		pr_info(MyTag "[%s] " format, __func__, ##args); \
 	} while (0)
 
 #define LOG_ERR(format, args...)				 \
 	do {							 \
-		if (egn_debug >= 0)				 \
-			pr_info(MyTag "[%s] " format, __func__, ##args); \
+		pr_info(MyTag "[%s] " format, __func__, ##args); \
 	} while (0)
 
 

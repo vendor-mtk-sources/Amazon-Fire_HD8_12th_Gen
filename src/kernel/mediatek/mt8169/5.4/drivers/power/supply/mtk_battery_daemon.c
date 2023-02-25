@@ -4061,6 +4061,12 @@ void mtk_battery_netlink_handler(struct sk_buff *skb)
 
 	size = fgd_msg->fgd_ret_data_len + FGD_NL_HDR_LEN;
 
+	/* protection from malicious process */
+	if (fgd_msg->fgd_ret_data_len > FGD_NL_MSG_MAX_LEN) {
+		bm_err("illegal fgd_ret_data_len data length, ignore it.");
+		return;
+	}
+
 	if (size > (PAGE_SIZE << 1))
 		fgd_ret_msg = vmalloc(size);
 	else {

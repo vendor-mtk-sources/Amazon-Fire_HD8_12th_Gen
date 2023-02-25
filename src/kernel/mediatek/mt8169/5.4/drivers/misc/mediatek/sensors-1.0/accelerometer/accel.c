@@ -8,7 +8,6 @@
 #include "inc/accel_factory.h"
 #include "sensor_performance.h"
 #include <linux/vmalloc.h>
-
 struct acc_context *acc_context_obj /* = NULL*/;
 
 static struct acc_init_info *gsensor_init_list[MAX_CHOOSE_G_NUM] = {0};
@@ -16,11 +15,10 @@ static struct acc_init_info *gsensor_init_list[MAX_CHOOSE_G_NUM] = {0};
 static int64_t getCurNS(void)
 {
 	int64_t ns;
-	struct timespec time;
+	struct timespec64 time;
 
 	time.tv_sec = time.tv_nsec = 0;
-	//ktime_get_boottime_ts64(&time);
-	time = ktime_to_timespec(ktime_get_boottime());
+	ktime_get_boottime_ts64(&time);
 	ns = time.tv_sec * 1000000000LL + time.tv_nsec;
 
 	return ns;
@@ -197,11 +195,10 @@ static int acc_enable_and_batch(void)
 
 	if (atomic_read(&cxt->acc_pause)) {
 		cxt->is_acc_need_restore_polling = !!cxt->enable;
-		pr_err("already in pause, just save enable state: %d\n",
+		pr_info("already in pause, just save enable state: %d\n",
 			cxt->is_acc_need_restore_polling);
 		return -1;
 	}
-
 	/* power on -> power off */
 	if (cxt->power == 1 && cxt->enable == 0) {
 		pr_debug("ACC disable\n");
@@ -861,7 +858,7 @@ int acc_probe(void)
 
 	int err;
 
-	pr_debug("+++++++++++++accel_probe!!\n");
+	pr_info("+++++++++++++accel_probe!!\n");
 
 	acc_context_obj = acc_context_alloc_object();
 	if (!acc_context_obj) {
@@ -876,7 +873,7 @@ int acc_probe(void)
 		goto real_driver_init_fail;
 	}
 
-	pr_debug("----accel_probe OK !!\n");
+	pr_info("----accel_probe OK !!\n");
 	return 0;
 
 real_driver_init_fail:

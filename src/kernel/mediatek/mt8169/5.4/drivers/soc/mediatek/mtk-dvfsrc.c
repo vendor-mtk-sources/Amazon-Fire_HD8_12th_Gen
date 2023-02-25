@@ -713,9 +713,14 @@ static int mtk_dvfsrc_probe(struct platform_device *pdev)
 #endif
 
 #ifdef DVFSRC_PROPERTY_ENABLE
-	of_property_read_u32(np, "dvfsrc,bringup", &is_bringup);
-	of_property_read_u32(np, "dvfsrc_flag", &dvfsrc_flag);
-	of_property_read_u32(np, "dvfsrc_vmode", &dvfsrc_vmode);
+	if (of_property_read_u32(np, "dvfsrc,bringup", &is_bringup))
+		dev_info(dvfsrc->dev, "not dvfsrc bring up\n");
+
+	if (of_property_read_u32(np, "dvfsrc_flag", &dvfsrc_flag))
+		dev_info(dvfsrc->dev, "no dvfsrc flag\n");
+
+	if (of_property_read_u32(np, "dvfsrc_vmode", &dvfsrc_vmode))
+		dev_info(dvfsrc->dev, "no dvfsrc vmode\n");
 
 	if (!is_bringup) {
 		arm_smccc_smc(MTK_SIP_VCOREFS_CONTROL, MTK_SIP_DVFSRC_INIT,

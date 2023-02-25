@@ -50,9 +50,9 @@ int dfd_setup(int version)
 				0, 0, 0, 0, &res);
 		}
 
-		if (res.a0 < 0) {
+		if (res.a0) {
 			pr_err("DFD setup failed. ret = %lu\n", res.a0);
-			return res.a0;
+			return -1;
 		}
 
 		return ret;

@@ -1264,9 +1264,9 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		},
 	},
 #endif
-#if defined(SC201CS_RASPITE_RAW_LCE_REAR)
+#if defined(SC202CS_RASPITE_RAW_LCE_REAR)
 	{
-		SENSOR_DRVNAME_SC201CS_RASPITE_RAW_LCE_REAR,
+		SENSOR_DRVNAME_SC202CS_RASPITE_RAW_LCE_REAR,
 		{
 			{PDN, Vol_Low, 5},
 			{SensorMCLK, Vol_High, 0},

@@ -2363,10 +2363,16 @@ struct kedump_reserved_buffer {
 	 u32 version;
 	 u64 reserved;
 };
+
 enum {
 	IPANIC_LAST_PC = 0,
+	IPANIC_LAST_SPM_DATA = 1,
 	IPANIC_LAST_ATF = 2,
+	IPANIC_LAST_DRAMC = 3,
+	IPANIC_LAST_SSPM_DATA = 5,
+	IPANIC_LAST_SSPM_LOG = 6,
 };
+
 struct ipanic_data_header {
 	 u32 type;       /* data type(0-31) */
 	 u32 valid;      /* set to 1 when dump succeded */
@@ -2428,7 +2434,7 @@ static int kedump_buffer_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int kedump_get_data_info(int index, struct ipanic_data *data)
+static unsigned int kedump_get_data_info(int index, struct ipanic_data *data)
 {
 	unsigned long header_addr, header_size, data_offset, data_addr, data_size;
 	struct ipanic_data_header *header_buffer = NULL;
@@ -2440,7 +2446,7 @@ static int kedump_get_data_info(int index, struct ipanic_data *data)
 	header_buffer = remap_lowmem(header_addr, header_size);
 	if (header_buffer == NULL) {
 		pr_err("kedump_buffer: ioremap failed\n");
-		return -1;
+		return 0;
 	}
 
 	data_offset = header_buffer->offset;
@@ -2450,29 +2456,67 @@ static int kedump_get_data_info(int index, struct ipanic_data *data)
 	data->buffer = remap_lowmem(data_addr, data_size);
 	if (data->buffer == NULL) {
 		pr_err("kedump_buffer: ioremap failed\n");
-		return -1;
+		return 0;
 	}
 	data->size = data_size;
 
-	return 0;
+	return data_size;
+}
+
+static void kedump_add2atf(struct seq_file *m, int index, struct ipanic_data data, unsigned int datasize)
+{
+	unsigned int i;
+
+	for (i = 0; i < datasize; i++) {
+		if (index != IPANIC_LAST_DRAMC) {
+			if (*(data.buffer+i) != '\0') {
+				seq_putc(m, *(data.buffer+i));
+			}
+		}
+		else {
+			seq_printf(m, "%02x", *(data.buffer+i));
+			if ((i + 1) % 4 == 0) {
+				seq_printf(m, " ");
+			}
+		}
+	}
 }
 
 static int kedump_buffer_show_atf(struct seq_file *m, void *v)
 {
-	int i;
-	struct ipanic_data lastpc_data, lastatf_data;
+	unsigned int datasize = 0;
+	struct ipanic_data pdata = { 0 };
+	static const int LAST_DRAM_LIMIT_SIZE = 88;
 
-	kedump_get_data_info(IPANIC_LAST_PC, &lastpc_data);
-	for (i = 0; i < lastpc_data.size; i++) {
-		if (*(lastpc_data.buffer+i) != '\0')
-			seq_putc(m, *(lastpc_data.buffer+i));
+	datasize = kedump_get_data_info(IPANIC_LAST_PC, &pdata);
+	if (datasize > 0)
+		kedump_add2atf(m, IPANIC_LAST_PC, pdata, datasize);
+
+	seq_printf(m, "\n********last spm data********\n");
+	datasize = kedump_get_data_info(IPANIC_LAST_SPM_DATA, &pdata);
+	if (datasize > 0)
+		kedump_add2atf(m, IPANIC_LAST_SPM_DATA, pdata, datasize);
+
+	seq_printf(m, "\n********last atf********\n");
+	datasize = kedump_get_data_info(IPANIC_LAST_ATF, &pdata);
+	if (datasize > 0)
+		kedump_add2atf(m, IPANIC_LAST_ATF, pdata, datasize);
+
+	seq_printf(m, "\n********last dramc********\n");
+	datasize = kedump_get_data_info(IPANIC_LAST_DRAMC, &pdata);
+	if (datasize > 0) {
+		kedump_add2atf(m, IPANIC_LAST_DRAMC, pdata, datasize > LAST_DRAM_LIMIT_SIZE? LAST_DRAM_LIMIT_SIZE: datasize);
 	}
 
-	kedump_get_data_info(IPANIC_LAST_ATF, &lastatf_data);
-	for (i = 0; i < lastatf_data.size; i++) {
-		if (*(lastatf_data.buffer+i) != '\0')
-			seq_putc(m, *(lastatf_data.buffer+i));
-	}
+	seq_printf(m, "\n********last sspm data********\n");
+	datasize = kedump_get_data_info(IPANIC_LAST_SSPM_DATA, &pdata);
+	if (datasize > 0)
+		kedump_add2atf(m, IPANIC_LAST_SSPM_DATA, pdata, datasize);
+
+	seq_printf(m, "\n********last sspm log********\n");
+	datasize = kedump_get_data_info(IPANIC_LAST_SSPM_LOG, &pdata);
+	if (datasize > 0)
+		kedump_add2atf(m, IPANIC_LAST_SSPM_LOG, pdata, datasize);
 
 	seq_putc(m, '\0');
 

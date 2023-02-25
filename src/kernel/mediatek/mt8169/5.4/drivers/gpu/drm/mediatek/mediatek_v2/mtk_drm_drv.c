@@ -17,6 +17,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <uapi/linux/sched/types.h>
+#include <drm/drm_auth.h>
 
 #include "drm_internal.h"
 #include "mtk_drm_crtc.h"
@@ -2467,6 +2468,15 @@ int mtk_drm_get_info_ioctl(struct drm_device *dev, void *data,
 	return -EINVAL;
 }
 
+int mtk_drm_get_master_info_ioctl(struct drm_device *dev,
+					void *data, struct drm_file *file_priv)
+{
+	int *ret = (int *)data;
+
+	*ret = drm_is_current_master(file_priv);
+	return 0;
+}
+
 int mtk_drm_set_ddp_mode(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
@@ -2683,6 +2693,8 @@ static const struct drm_ioctl_desc mtk_ioctls[] = {
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MTK_GET_SESSION_INFO, mtk_drm_get_info_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MTK_GET_MASTER_INFO, mtk_drm_get_master_info_ioctl,
+			  DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(MTK_SET_CCORR, mtk_drm_ioctl_set_ccorr,
 			  DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(MTK_CCORR_EVENTCTL, mtk_drm_ioctl_ccorr_eventctl,

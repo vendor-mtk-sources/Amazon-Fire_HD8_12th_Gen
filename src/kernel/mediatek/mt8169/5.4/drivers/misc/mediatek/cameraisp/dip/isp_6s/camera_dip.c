@@ -912,6 +912,10 @@ static struct SV_LOG_STR gSvLog[DIP_IRQ_TYPE_AMOUNT];
 	} else {\
 		logT = logT_in; \
 	} \
+	if (ppb < 0 || ppb >= LOG_PPNUM) {\
+		LOG_ERR("ppb is out of range"); \
+		break; \
+	} \
 	ptr = pSrc->_str[ppb][logT]; \
 	if (pSrc->_cnt[ppb][logT] != 0) {\
 		if (logT == _LOG_DBG) {\
@@ -4862,6 +4866,10 @@ static signed int DIP_P2_BufQue_Update_ListCIdx
 	int i = 0;
 	enum DIP_P2_BUF_STATE_ENUM cIdxSts = DIP_P2_BUF_STATE_NONE;
 
+	if (property >= DIP_P2_BUFQUE_PROPERTY_NUM) {
+		LOG_ERR("property is out of range\n");
+		return -1;
+	}
 	switch (listTag) {
 	case DIP_P2_BUFQUE_LIST_TAG_UNIT:
 		/* [1] check global pointer current sts */
@@ -4967,6 +4975,10 @@ static signed int DIP_P2_BufQue_Erase
 	signed int cnt = 0;
 	int tmpIdx = 0;
 
+	if (property >= DIP_P2_BUFQUE_PROPERTY_NUM) {
+		LOG_ERR("property is out of range\n");
+		return -1;
+	}
 	switch (listTag) {
 	case DIP_P2_BUFQUE_LIST_TAG_PACKAGE:
 	tmpIdx = P2_FramePack_List_Idx[property].start;
@@ -5089,7 +5101,10 @@ static signed int DIP_P2_BufQue_GetMatchIdx
 		return idx;
 	}
 	property = param.property;
-
+	if (property >= DIP_P2_BUFQUE_PROPERTY_NUM) {
+		LOG_ERR("property is out of range\n");
+		return -1;
+	}
 	switch (matchType) {
 	case DIP_P2_BUFQUE_MATCH_TYPE_WAITDQ:
 	/* traverse for finding the frame unit */
@@ -5375,7 +5390,11 @@ static signed int DIP_P2_BufQue_CTRL_FUNC(
 		return ret;
 	}
 	property = param.property;
-
+	if (property >= DIP_P2_BUFQUE_PROPERTY_NUM) {
+		LOG_ERR("property is out of range\n");
+		ret = -EFAULT;
+		return ret;
+	}
 	switch (param.ctrl) {
 	/* signal that a specific buffer is enqueued */
 	case DIP_P2_BUFQUE_CTRL_ENQUE_FRAME:

@@ -2965,6 +2965,7 @@ static int mt6357_gauge_suspend(struct platform_device *pdev,
 	if (gm->suspend != NULL)
 		gm->suspend(gm, state);
 
+	atomic_set(&gm->suspend_active, 1);
 	return 0;
 }
 
@@ -2979,6 +2980,7 @@ static int mt6357_gauge_resume(struct platform_device *pdev)
 	if (gm->resume != NULL)
 		gm->resume(gm);
 
+	atomic_set(&gm->suspend_active, 0);
 	return 0;
 }
 

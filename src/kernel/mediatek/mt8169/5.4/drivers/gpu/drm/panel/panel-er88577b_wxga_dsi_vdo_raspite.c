@@ -696,7 +696,7 @@ static int er88577b_lcm_probe(struct mipi_dsi_device *dsi)
 	}
 
 #ifdef CONFIG_LK_FASTLOGO
-	if (ctx->vsim1 && regulator_is_enabled(ctx->vsim1)) {
+	if (ctx->vsim1) {
 		ret = regulator_set_voltage(ctx->vsim1, 1800000, 1800000);
 		if (!ret) {
 			ret = regulator_enable(ctx->vsim1);

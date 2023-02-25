@@ -322,7 +322,7 @@ static int mtk_dai_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	pcm_priv = afe_priv->dai_priv[dai->id];
 	if (!pcm_priv) {
-		dev_info(afe->dev, "%s(), tdm_priv == NULL", __func__);
+		dev_info(afe->dev, "%s(), pcm_priv == NULL\n", __func__);
 		return -EINVAL;
 	}
 

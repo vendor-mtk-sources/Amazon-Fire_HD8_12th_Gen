@@ -500,12 +500,14 @@ void clk_buf_get_enter_bblpm_cond(u32 *bblpm_cond)
 		(*bblpm_cond) |= BBLPM_CEL;
 
 	clkbuf_read(SPM_CONN_PWR_STA, 0, &val);
-	if (val || pmic_clk_buf_swctrl[xo_match_idx[XO_WCN]])
-		(*bblpm_cond) |= BBLPM_WCN;
+	if (_chk_xo_cond(xo_match_idx[XO_WCN]))
+		if (val || pmic_clk_buf_swctrl[xo_match_idx[XO_WCN]])
+			(*bblpm_cond) |= BBLPM_WCN;
 
 	val = _clk_buf_en_get(xo_match_idx[CLK_BUF_NFC]);
-	if ((val >= 0) && (val || pmic_clk_buf_swctrl[xo_match_idx[XO_NFC]]))
-		(*bblpm_cond) |= BBLPM_NFC;
+	if (_chk_xo_cond(xo_match_idx[XO_NFC]))
+		if (val || pmic_clk_buf_swctrl[xo_match_idx[XO_NFC]])
+			(*bblpm_cond) |= BBLPM_NFC;
 
 	pr_info("%s: bblpm condition: 0x%x\n", __func__, *bblpm_cond);
 }
@@ -776,12 +778,12 @@ int clk_buf_hw_ctrl(u32 id, bool onoff)
 		no_lock = 1;
 
 	if (_clk_buf_mode_get(match_id) == BUF_MAN_M)
-		ret = _clk_buf_ctrl_internal(id, onoff);
+		ret = _clk_buf_ctrl_internal(id, (enum cmd_type)onoff);
 
 	if (!no_lock)
 		mutex_lock(&clk_buf_ctrl_lock);
 
-	pmic_clk_buf_swctrl[match_id] = onoff;
+	pmic_clk_buf_swctrl[match_id] = (enum CLK_BUF_TYPE)onoff;
 
 	if (!no_lock)
 		mutex_unlock(&clk_buf_ctrl_lock);
@@ -857,10 +859,13 @@ void clk_buf_hw_dump_misc_log(void)
 	buf = vmalloc(CLKBUF_STATUS_INFO_SIZE);
 
 	ret = _clk_buf_dump_misc_log(buf);
-	if (ret <= 0)
+	if (ret <= 0) {
+		vfree(buf);
 		return;
+	}
 
 	pr_notice("%s\n", buf);
+	vfree(buf);
 }
 
 int clk_buf_hw_get_xo_en(u32 id, u32 *stat)
@@ -956,7 +961,8 @@ static ssize_t _clk_buf_show_status_info_internal(char *buf)
 		ret = _clk_buf_get_drv_curr(id, &drv_curr);
 		if (!ret)
 			len += snprintf(buf + len, PAGE_SIZE - len,
-				"PMIC_CLKBUF_DRV_CURR (%d)= %u\n", drv_curr);
+					"PMIC_CLKBUF_DRV_CURR (%d)= %u\n",
+					id, drv_curr);
 	}
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
@@ -981,15 +987,17 @@ static ssize_t clk_buf_ctrl_store(struct kobject *kobj,
 	clk_buf_en = kcalloc(xo_num, sizeof(*clk_buf_en), GFP_KERNEL);
 
 	if (sscanf(buf, "%31s %x %x %x %x %x %x %x", cmd,
-		&clk_buf_en[XO_SOC],
-		&clk_buf_en[XO_WCN],
-		&clk_buf_en[XO_NFC],
-		&clk_buf_en[XO_CEL],
-		&clk_buf_en[XO_AUD],
-		&clk_buf_en[XO_PD],
-		&clk_buf_en[XO_EXT])
-		!= (XO_NUMBER + 1))
+		   &clk_buf_en[XO_SOC],
+		   &clk_buf_en[XO_WCN],
+		   &clk_buf_en[XO_NFC],
+		   &clk_buf_en[XO_CEL],
+		   &clk_buf_en[XO_AUD],
+		   &clk_buf_en[XO_PD],
+		   &clk_buf_en[XO_EXT])
+		   != (XO_NUMBER + 1)) {
+		kfree(clk_buf_en);
 		return -EPERM;
+	}
 
 	for (i = 0; i < XO_NUMBER; i++) {
 		int id = xo_match_idx[i];
@@ -1031,15 +1039,19 @@ static ssize_t clk_buf_ctrl_store(struct kobject *kobj,
 		} else if (!strcmp(cmd, "drvcurr")) {
 			mutex_lock(&clk_buf_ctrl_lock);
 			ret = _clk_buf_set_manual_drv_curr(id, clk_buf_en[i]);
-			if (ret)
+			if (ret) {
+				kfree(clk_buf_en);
 				return -EFAULT;
+			}
 			mutex_unlock(&clk_buf_ctrl_lock);
 
 		} else {
+			kfree(clk_buf_en);
 			return -EINVAL;
 		}
 	}
 
+	kfree(clk_buf_en);
 	return count;
 }
 
@@ -1322,7 +1334,10 @@ static int get_capid_idme(u32 *cap)
 			}
 			return 0;
 		}
+	} else {
+		pr_notice("%s cannot find %s\n", __func__, IDME_CAP_ID);
 	}
+
 	return -1;
 }
 
@@ -1480,8 +1495,9 @@ int clk_buf_dts_init(struct platform_device *pdev)
 		pmic_op->pmic_clk_buf_get_cap_id(&capid_new);
 		pr_info("write capid 0x%x done. current capid: 0x%x\n",
 			cap, capid_new);
-	}	else
-		goto no_property;
+	} else {
+		pr_info("get_capid_idme failed.\n");
+	}
 
 	_clk_buf_read_dts_misc_node(node);
 

@@ -435,9 +435,9 @@ static struct SV_LOG_STR gSvLog[MFB_IRQ_TYPE_AMOUNT];
 			_cnt[ppb][logT]]);    \
 	avaLen = str_leng - 1 - gSvLog[irq]._cnt[ppb][logT];\
 	if (avaLen > 1) {\
-		if (snprintf((char *)(pDes), avaLen, fmt,\
-			##__VA_ARGS__) < 0)  \
-			LOG_ERR("snprintf error"); \
+		if (snprintf((char *)(pDes), avaLen, fmt, ##__VA_ARGS__) < 0) {\
+			LOG_ERR("snprintf fail");\
+		} \
 		if ('\0' != gSvLog[irq]._str[ppb][logT][str_leng - 1]) {\
 			LOG_ERR("log str over flow(%d)", irq);\
 		} \
@@ -502,8 +502,10 @@ static struct SV_LOG_STR gSvLog[MFB_IRQ_TYPE_AMOUNT];
 			ptr = pDes = (char *)&(\
 			     pSrc->_str[ppb][logT][pSrc->_cnt[ppb][logT]]);\
 			ptr2 = &(pSrc->_cnt[ppb][logT]);\
-			if (snprintf((char *)(pDes), avaLen, fmt, ##__VA_ARGS__) < 0) \
-				LOG_ERR("snprintf error"); \
+			if (snprintf((char *)(pDes), avaLen, fmt,\
+				##__VA_ARGS__) < 0) {\
+				LOG_ERR("snprintf fail");\
+			} \
 			while (*ptr++ != '\0') {\
 				(*ptr2)++;\
 			} \
@@ -4066,7 +4068,7 @@ static signed int MFB_probe(struct platform_device *pDev)
 	struct platform_device *pdev;
 
 #ifdef CONFIG_OF
-	struct MFB_device *MFB_dev;
+	struct MFB_device *MFB_dev = NULL;
 #endif
 
 	LOG_INF("- E. MFB driver probe. nr_MFB_devs : %d.", nr_MFB_devs);
@@ -4095,6 +4097,11 @@ static signed int MFB_probe(struct platform_device *pDev)
 		MFB_dev = &(MFB_devs[MSS_DEV_NODE_IDX]);
 	if (!strcmp(pDev->dev.of_node->name, "imgsys_mfb_b"))
 		MFB_dev = &(MFB_devs[IMGSYS_DEV_MODE_IDX]);
+
+	if (MFB_dev == NULL) {
+		dev_dbg(&pDev->dev, "MFB_dev is NULL");
+		return -ENXIO;
+	}
 
 	MFB_dev->dev = &pDev->dev;
 

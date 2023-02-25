@@ -2665,7 +2665,7 @@ static int mtk_ovl_io_cmd(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle,
 
 		cmdq_pkt_mem_move(handle, comp->cmdq_base,
 			comp->regs_pa + DISP_REG_OVL_STA,
-			slot, CMDQ_THR_SPR_IDX3);
+			slot, CMDQ_THR_SPR_IDX0);
 		break;
 	}
 	default:
@@ -3219,23 +3219,23 @@ mtk_ovl_config_trigger(struct mtk_ddp_comp *comp, struct cmdq_pkt *pkt,
 		cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 				  comp->regs_pa + DISP_REG_OVL_GDRDY_PRD_NUM,
 				  qbuf->pa_base + offset,
-				  CMDQ_THR_SPR_IDX3);
+				  CMDQ_THR_SPR_IDX0);
 
 		offset += 4;
 		cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 				  comp->regs_pa + DISP_REG_OVL_SRC_CON,
 				  qbuf->pa_base + offset,
-				  CMDQ_THR_SPR_IDX3);
+				  CMDQ_THR_SPR_IDX0);
 		offset += 4;
 		cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 				  comp->regs_pa + DISP_REG_OVL_DATAPATH_CON,
 				  qbuf->pa_base + offset,
-				  CMDQ_THR_SPR_IDX3);
+				  CMDQ_THR_SPR_IDX0);
 		offset += 4;
 		cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 				  comp->regs_pa + DISP_REG_OVL_DATAPATH_EXT_CON,
 				  qbuf->pa_base + offset,
-				  CMDQ_THR_SPR_IDX3);
+				  CMDQ_THR_SPR_IDX0);
 
 		for (i = 0; i < lnr + 3; i++) {
 			if (i < lnr) {
@@ -3250,12 +3250,12 @@ mtk_ovl_config_trigger(struct mtk_ddp_comp *comp, struct cmdq_pkt *pkt,
 			cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 					  comp->regs_pa + ln_con,
 					  qbuf->pa_base + offset,
-					  CMDQ_THR_SPR_IDX3);
+					  CMDQ_THR_SPR_IDX0);
 			offset += 0x4;
 			cmdq_pkt_mem_move(pkt, comp->cmdq_base,
 					  comp->regs_pa + ln_size,
 					  qbuf->pa_base + offset,
-					  CMDQ_THR_SPR_IDX3);
+					  CMDQ_THR_SPR_IDX0);
 		}
 
 		if (comp->id == DDP_COMPONENT_OVL0_2L) {

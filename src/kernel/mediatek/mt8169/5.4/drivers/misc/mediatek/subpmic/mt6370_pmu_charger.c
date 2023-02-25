@@ -2212,7 +2212,9 @@ static void correct_iaicr_cal_data(int *iaicr_cal, int target_iaicr)
 static int mt6370_update_iaicr_cal_value(
 	struct mt6370_pmu_charger_data *chg_data)
 {
+#if IS_ENABLED(CONFIG_IDME)
 	int ret = 0;
+#endif
 	int i;
 	int idmedata[IAICR_ARRAY_NUM] = {0};
 	struct mt6370_pmu_chip *chip = NULL;

@@ -3,7 +3,7 @@
 #
 #  build_kernel.sh
 #
-#  Copyright (c) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#  Copyright (c) 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 ################################################################################
 
@@ -128,8 +128,8 @@ function exec_build_kernel {
     OBJCOPY="${CLANG_COMPILER_PATH}/bin/llvm-objcopy"
 
     MAKE_ARGS="-C ${KERNEL_SUBPATH} ARCH=${TARGET_ARCH} CC=${CC} CROSS_COMPILE=${CCOMPILE} CLANG_TRIPLE=aarch64-linux-gnu- LD=${LD} NM=${NM} OBJCOPY=${OBJCOPY} O=${WORKSPACE_OUT_DIR} ${DEFCONFIG_NAME}"
-
-    MAKE_ARGS1=" O=${WORKSPACE_OUT_DIR} -C ${KERNEL_SUBPATH} ARCH=${TARGET_ARCH} CROSS_COMPILE=${CCOMPILE} CLANG_TRIPLE=aarch64-linux-gnu- CC=${CC}"
+ 
+    MAKE_ARGS1=" O=${WORKSPACE_OUT_DIR} -C ${KERNEL_SUBPATH} ARCH=${TARGET_ARCH} CROSS_COMPILE=${CCOMPILE} CLANG_TRIPLE=aarch64-linux-gnu- CC=${CC}"  
 
     cp -p ${PLATFORM_EXTRACT_DIR}/${KERNEL_SUBPATH}/arch/arm64/configs/${PROCONFIG_NAME}_defconfig ${PLATFORM_EXTRACT_DIR}/${KERNEL_SUBPATH}/arch/arm64/configs/${PROCONFIG_NAME}.config
 

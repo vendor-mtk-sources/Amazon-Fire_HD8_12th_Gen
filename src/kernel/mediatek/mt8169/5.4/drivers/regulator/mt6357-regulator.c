@@ -369,6 +369,20 @@ static int mt6357_regulator_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
+static int mt6357_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	int ret = 0;
+
+	if (rdev->use_count == 0) {
+		dev_notice(&rdev->dev, "%s:Suppose %s is off.(use_count=0)\n"
+					, __func__, rdev->desc->name);
+		ret = 0;
+	} else
+		ret = regulator_is_enabled_regmap(rdev);
+
+	return ret;
+}
+
 static inline unsigned int mt6357_map_mode(unsigned int mode)
 {
 	switch (mode) {
@@ -515,7 +529,7 @@ static const struct regulator_ops mt6357_volt_range_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.enable = mt6357_regulator_enable,
 	.disable = mt6357_regulator_disable,
-	.is_enabled = regulator_is_enabled_regmap,
+	.is_enabled = mt6357_regulator_is_enabled,
 	.get_status = mt6357_get_status,
 	.set_mode = mt6357_regulator_set_mode,
 	.get_mode = mt6357_regulator_get_mode,
@@ -529,14 +543,14 @@ static const struct regulator_ops mt6357_volt_table_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.enable = mt6357_regulator_enable,
 	.disable = mt6357_regulator_disable,
-	.is_enabled = regulator_is_enabled_regmap,
+	.is_enabled = mt6357_regulator_is_enabled,
 	.get_status = mt6357_get_status,
 };
 
 static const struct regulator_ops mt6357_volt_fixed_ops = {
 	.enable = mt6357_regulator_enable,
 	.disable = mt6357_regulator_disable,
-	.is_enabled = regulator_is_enabled_regmap,
+	.is_enabled = mt6357_regulator_is_enabled,
 	.get_status = mt6357_get_status,
 };
 
@@ -544,7 +558,7 @@ static const struct regulator_ops mt6357_vmc_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 	.enable = mt6357_regulator_enable,
 	.disable = mt6357_regulator_disable,
-	.is_enabled = regulator_is_enabled_regmap,
+	.is_enabled = mt6357_regulator_is_enabled,
 	.get_status = mt6357_get_status,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,

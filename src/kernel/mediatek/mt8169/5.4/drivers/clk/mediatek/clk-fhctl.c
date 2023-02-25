@@ -70,7 +70,7 @@ static int mtk_fhctl_parse_dt(struct mtk_fhctl *fhctl)
 
 	for_each_child_of_node(node, child) {
 		struct clk_mt_fhctl_pll_data *pll_data;
-		unsigned int id, pll_id, ssc;
+		unsigned int id = 0, pll_id = 0, ssc = 0;
 		int err, tbl_size;
 		bool ret;
 
@@ -97,7 +97,7 @@ static int mtk_fhctl_parse_dt(struct mtk_fhctl *fhctl)
 		if (tbl_size > 0) {
 			pll_data->hp_tbl_size = tbl_size;
 			pll_data->hp_tbl = devm_kzalloc(dev,
-					sizeof(unsigned int *)*tbl_size,
+					sizeof(unsigned int)*tbl_size,
 					GFP_KERNEL);
 
 			if (!pll_data->hp_tbl)

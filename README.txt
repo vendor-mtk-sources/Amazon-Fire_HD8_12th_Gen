@@ -11,10 +11,9 @@ AMAZON WILL NOT BE LIABLE FOR ANY DAMAGES OF ANY KIND ARISING FROM THE USE OF
 THE BUILD MATERIALS INCLUDING, BUT NOT LIMITED TO, DIRECT, INDIRECT,
 INCIDENTAL, PUNITIVE, AND CONSEQUENTIAL DAMAGES.
 
+
 BUILDING THE KERNEL
 -------------------
-You will need the files platform.tar and build_kernel.tar.gz (or build.tar.gz)
-from the tarball to build the kernel.
 
 1. You may need to install prerequisite libraries. On a Debian-based system:
 
@@ -45,40 +44,32 @@ from the tarball to build the kernel.
         sudo apt-get install multiarch-support
         sudo apt-get install libc6:i386 libncurses5:i386 libstdc++6:i386
 
-5.  Extract build_kernel.tar.gz or build.tar.gz tarball if either exists.
+5.  Check build_kernel_config.sh if any additional compilers are needed.
 
-6.  Check build_kernel_config.sh if any additional compilers are needed.
-
-7.  Execute the script by running:
+6.  Execute the script by running:
 
     ./build_kernel.sh "<path to platform.tar>" "<target output directory>"
 
+
 BUILDING BUSYBOX (if applicable)
 --------------------------------
-You will need the files platform.tar and build_kernel.tar.gz (or build.tar.gz)
-from the tarball to build the busybox.
 
-1.  Extract build_kernel.tar.gz or build.tar.gz tarball if it exists.
+1.  Check build_busybox_config.sh if any additional compilers are needed.
 
-2.  Check build_busybox_config.sh if any additional compilers are needed.
-
-3.  Execute the script by running:
+2.  Execute the script by running:
 
     ./build_busybox.sh "<path to platform.tar>" "<target output directory>"
 
 
 BUILDING UBOOT (if applicable)
 ------------------------------
-You will need the files platform.tar and build_kernel.tar.gz (or build.tar.gz)
-from the tarball to build the uboot.
 
-1.  Extract build_kernel.tar.gz or build.tar.gz tarball if it exists.
+1.  Check build_uboot_config.sh if any additional compilers are needed.
 
-2.  Check build_uboot_config.sh if any additional compilers are needed.
-
-3.  Execute the script by running:
+2.  Execute the script by running:
 
     ./build_uboot.sh "<path to platform.tar>" "<target output directory>"
+
 
 BUILDING LIBRARIES
 ------------------

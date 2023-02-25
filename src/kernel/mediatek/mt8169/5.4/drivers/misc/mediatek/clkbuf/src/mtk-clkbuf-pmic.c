@@ -48,6 +48,7 @@
 
 enum pmic_id {
 	PMIC_6357 = 0,
+	PMIC_6358,
 	PMIC_6359,
 	PMIC_6359P,
 	PMIC_NUM,
@@ -135,6 +136,7 @@ static int cfg_num[REG_NUM];
 
 static const char *PMIC_NAME[PMIC_NUM] = {
 	[PMIC_6357] = "mediatek,mt6357",
+	[PMIC_6358] = "mediatek,mt6358",
 	[PMIC_6359] = "mediatek,mt6359",
 	[PMIC_6359P] = "mediatek,mt6359p",
 };
@@ -194,6 +196,7 @@ static const u32 PMIC_CLKBUF_MASK[REG_NUM] = {
 	[XO_COFST_FPM] = 0x3,
 	[XO_AAC_FPM_SWEN] = 0x1,
 	[DCXO_START] = 0xffff,
+	[DCXO_END] = 0xffff,
 };
 
 struct reg_data {
@@ -221,6 +224,48 @@ static struct reg_data  reg_mt6357[] = {
 	[XO7_ISET_M] = REG(0x7b0, 12),
 	[XO_BB_LPM_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 12),
 	[SRCLKEN_IN3_EN] = REG(0x44A, 0),
+	[DCXO_START] = REG(0x788, 0),
+	[DCXO_END] = REG(0x7BC, 0),
+	[AUXOUT_SEL] = REG(0x7B4, 0),
+	[AUXOUT_XO1] =  REG(0x7B6, 0),
+	[AUXOUT_XO2] =  REG(0x7B6, 6),
+	[AUXOUT_XO3] =  REG(0x7B6, 0),
+	[AUXOUT_XO4] =  REG(0x7B6, 6),
+	[AUXOUT_XO6] =  REG(0x7B6, 6),
+	[AUXOUT_XO7] =  REG(0x7B6, 12),
+	[AUXOUT_DRV_CURR1] =  REG(0x7B6, 1),
+	[AUXOUT_DRV_CURR2] =  REG(0x7B6, 7),
+	[AUXOUT_DRV_CURR3] =  REG(0x7B6, 1),
+	[AUXOUT_DRV_CURR4] =  REG(0x7B6, 7),
+	[AUXOUT_DRV_CURR5] =  REG(0x7B6, 1),
+	[AUXOUT_DRV_CURR6] =  REG(0x7B6, 7),
+	[AUXOUT_DRV_CURR7] =  REG(0x7B6, 12),
+	[AUXOUT_BBLPM_EN] =  REG(0x7B6, 0),
+	[AUXOUT_IS_AUTO_CALI] = REG(0x7B6, 2),
+	[XO_CDAC_FPM] = REG(0x794, 0),
+	[XO_CORE_IDAC_FPM] = REG(0x796, 14),
+	[XO_COFST_FPM] = REG(0x79a, 14),
+	[XO_AAC_FPM_SWEN] = REG(0x79e, 14),
+};
+
+static struct reg_data  reg_mt6358[] = {
+	[XO1_MODE] = REG_CLR_SET(0x788, 0x78A, 0x78C, 0),
+	[XO1_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 2),
+	[XO1_ISET_M] = REG(0x7b0, 0),
+	[XO2_MODE] = REG_CLR_SET(0x788, 0x78A, 0x78C, 3),
+	[XO2_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 5),
+	[XO2_ISET_M] = REG(0x7b0, 2),
+	[XO3_MODE] = REG_CLR_SET(0x788, 0x78A, 0x78C, 6),
+	[XO3_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 8),
+	[XO3_ISET_M] = REG(0x7b0, 4),
+	[XO4_MODE] = REG_CLR_SET(0x788, 0x78A, 0x78C, 9),
+	[XO4_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 11),
+	[XO4_ISET_M] = REG(0x7b0, 6),
+	[XO7_MODE] = REG_CLR_SET(0x7A2, 0x7A4, 0x7A6, 11),
+	[XO7_EN_M] = REG_CLR_SET(0x7A2, 0x7A4, 0x7A6, 13),
+	[XO7_ISET_M] = REG(0x7b0, 12),
+	[XO_BB_LPM_EN_M] = REG_CLR_SET(0x788, 0x78A, 0x78C, 12),
+	[SRCLKEN_IN3_EN] = REG(0x44E, 0),
 	[DCXO_START] = REG(0x788, 0),
 	[DCXO_END] = REG(0x7BC, 0),
 	[AUXOUT_SEL] = REG(0x7B4, 0),
@@ -333,8 +378,7 @@ static inline int pmic_clkbuf_read(u32 id, u32 idx, u32 *val)
 	unsigned int index = 0;
 	u32 regval = 0;
 
-	if (id < 0 || id >= REG_NUM ||
-		idx < 0 || idx >= xo_num)
+	if (id >= REG_NUM || idx >= xo_num)
 		return -1;
 
 	index  = id + idx;
@@ -352,8 +396,7 @@ static inline int pmic_clkbuf_write(u32 id, u32 idx, u32 val)
 {
 	unsigned int index = 0;
 
-	if (id < 0 || id >= REG_NUM ||
-		idx < 0 || idx >= xo_num)
+	if (id >= REG_NUM || idx >= xo_num)
 		return -1;
 
 	index  = id + idx;
@@ -372,8 +415,7 @@ static inline int pmic_clkbuf_set(u32 id, u32 idx, u32 val)
 {
 	unsigned int index = 0;
 
-	if (id < 0 || id >= REG_NUM ||
-		idx < 0 || idx >= xo_num)
+	if (id >= REG_NUM || idx >= xo_num)
 		return -1;
 
 	index  = id + idx;
@@ -391,8 +433,7 @@ static inline int pmic_clkbuf_clr(u32 id, u32 idx, u32 val)
 {
 	unsigned int index = 0;
 
-	if (id < 0 || id >= REG_NUM ||
-		idx < 0 || idx >= xo_num)
+	if (id >= REG_NUM || idx >= xo_num)
 		return -1;
 
 	index  = id + idx;
@@ -412,8 +453,7 @@ static inline int pmic_clkbuf_update(u32 id, u32 idx, u32 val)
 	u32 msk = 0;
 	u32 out = 0;
 
-	if (id < 0 || id >= REG_NUM ||
-		idx < 0 || idx >= xo_num)
+	if (id >= REG_NUM || idx >= xo_num)
 		return -1;
 
 	index  = id + idx;
@@ -540,10 +580,13 @@ static int clk_buf_get_xo_name(u32 id, char *name)
 	if (!xo_exist[id])
 		return CLK_BUF_NOT_SUPPORT;
 
-	len = strlen(xo_name[id]) + 4;
-	len = snprintf(name, len, "XO_%s", xo_name[id]);
 	if (!name)
 		return -ENOMEM;
+
+	len = strlen(xo_name[id]) + 4;
+	len = snprintf(name, len, "XO_%s", xo_name[id]);
+	if (len < 0)
+		return -EINVAL;
 
 	return 0;
 }
@@ -888,6 +931,23 @@ static struct pmic_clkbuf_op pmic_op[PMIC_NUM] = {
 		.pmic_clk_buf_set_cap_id = mt6357_clk_buf_set_cap_id,
 		.pmic_clk_buf_get_cap_id = mt6357_clk_buf_get_cap_id,
 	},
+	[PMIC_6358] = {
+		.pmic_name = "mt6358",
+		.pmic_clk_buf_get_drv_curr = _pmic_clk_buf_get_drv_curr,
+		.pmic_clk_buf_set_drv_curr = _pmic_clk_buf_set_drv_curr,
+		.pmic_clk_buf_get_xo_num = clk_buf_get_xo_num,
+		.pmic_clk_buf_get_xo_name = clk_buf_get_xo_name,
+		.pmic_clk_buf_get_xo_en = clk_buf_get_xo_en,
+		.pmic_clk_buf_get_xo_sw_en = clk_buf_get_xo_sw_en,
+		.pmic_clk_buf_set_xo_sw_en = clk_buf_set_xo_sw_en,
+		.pmic_clk_buf_get_xo_mode = clk_buf_get_xo_mode,
+		.pmic_clk_buf_set_xo_mode = clk_buf_set_xo_mode,
+		.pmic_clk_buf_get_bblpm_en = clk_buf_get_bblpm_en,
+		.pmic_clk_buf_set_bblpm_sw_en = _pmic_clk_buf_bblpm_sw_en,
+		.pmic_clk_buf_set_cap_id_pre = mt6357_clk_buf_set_cap_id_pre,
+		.pmic_clk_buf_set_cap_id = mt6357_clk_buf_set_cap_id,
+		.pmic_clk_buf_get_cap_id = mt6357_clk_buf_get_cap_id,
+	},
 	[PMIC_6359] = {
 		.pmic_name = "mt6359",
 		.pmic_clk_buf_set_bblpm_hw_msk =
@@ -971,6 +1031,9 @@ static const struct of_device_id mtk_clkbuf_pmic_of_match[] = {
 	{
 		.compatible = "mediatek,mt6357-clock-buffer",
 		.data = &reg_mt6357[0],
+	}, {
+		.compatible = "mediatek,mt6358-clock-buffer",
+		.data = &reg_mt6358[0],
 	}, {
 		.compatible = "mediatek,mt6359-clock-buffer",
 		.data = &reg_mt6359[0],

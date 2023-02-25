@@ -572,6 +572,10 @@ static struct SV_LOG_STR gSvLog[RSC_IRQ_TYPE_AMOUNT];
 	} else {\
 		logT = logT_in;\
 	} \
+	if (ppb < 0 || ppb >= LOG_PPNUM) {\
+		LOG_ERR("ppb is out of range"); \
+		break; \
+	} \
 	ptr = pSrc->_str[ppb][logT];\
 	if (pSrc->_cnt[ppb][logT] != 0) {\
 		if (logT == _LOG_DBG) {\
@@ -2058,7 +2062,11 @@ static long RSC_ioctl(struct file *pFile, unsigned int Cmd, unsigned long Param)
 	}
 
 	pUserInfo = (struct RSC_USER_INFO_STRUCT *) (pFile->private_data);
-
+	if (g_RSC_ReqRing.ReadIdx < 0 || g_RSC_ReqRing.ReadIdx
+		>= _SUPPORT_MAX_RSC_REQUEST_RING_SIZE_) {
+		LOG_ERR("g_RSC_ReqRing.ReadIdx is out of range");
+		return -EFAULT;
+	}
 	switch (Cmd) {
 	case RSC_RESET:
 		{
@@ -3645,7 +3653,10 @@ static ssize_t rsc_reg_write(struct file *file, const char __user *buffer,
 	len = (count < (sizeof(desc) - 1)) ? count : (sizeof(desc) - 1);
 	if (copy_from_user(desc, buffer, len))
 		return 0;
-
+	if (len < 0 || len >= 128) {
+		LOG_ERR("len is out of range");
+		return 0;
+	}
 	desc[len] = '\0';
 	addrSzBuf[23] = '\0';
 	valSzBuf[23] = '\0';

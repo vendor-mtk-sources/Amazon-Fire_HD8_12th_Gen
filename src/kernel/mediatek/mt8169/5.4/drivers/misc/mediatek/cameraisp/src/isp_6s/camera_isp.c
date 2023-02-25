@@ -1607,6 +1607,9 @@ static void ISP_DumpDmaDbgPort(enum ISP_DEV_NODE_ENUM module,
 	unsigned int smi_dbg_data = 0;
 	unsigned int fifo_case_1 = 0, fifo_case_3 = 0;
 
+	if (module >= ISP_DEV_NODE_NUM)
+		return;
+
 	ISP_WR32(CAM_REG_DBG_SET(module), 0x2);
 
 	switch (dma_port) {
@@ -7519,7 +7522,7 @@ void IRQ_INT_ERR_CHECK_CAM(unsigned int WarnStatus, unsigned int ErrStatus,
 			if (ErrStatus & TG_ERR_ST) {
 				ISP_DumpDmaDeepDbg(ISP_IRQ_TYPE_INT_CAM_A_ST);
 				ISP_DumpDmaDeepDbg(ISP_IRQ_TYPE_INT_CAM_B_ST);
-				ISP_DumpDmaDeepDbg(ISP_IRQ_TYPE_INT_CAM_C_ST);
+				//ISP_DumpDmaDeepDbg(ISP_IRQ_TYPE_INT_CAM_C_ST);
 			}
 
 			/* DMA ERR print */
@@ -9383,7 +9386,7 @@ unsigned int *reg_module_count)
 	}
 	LOG_NOTICE("+CQ recover");
 
-	if ((irq_module < 0) || (irq_module >= ISP_IRQ_TYPE_AMOUNT)) {
+	if (irq_module >= ISP_IRQ_TYPE_AMOUNT) {
 		LOG_NOTICE("[Error] invalid index : irq_module");
 		return -1;
 	}

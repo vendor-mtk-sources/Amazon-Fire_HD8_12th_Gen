@@ -56,12 +56,6 @@ int qos_ipi_to_sspm_command(void *buffer, int slot)
 
 	ret = qos_get_ipi_cmd(qos_ipi_d->cmd);
 
-	if (qos_ipi_d->cmd < 0) {
-		pr_info("qos ipi cmd get error (in= %d, out = %d)\n",
-			qos_ipi_d->cmd, ret);
-		goto error;
-	}
-
 	qos_ipi_d->cmd = ret;
 
 	if (qos_sspm_ready != 1) {

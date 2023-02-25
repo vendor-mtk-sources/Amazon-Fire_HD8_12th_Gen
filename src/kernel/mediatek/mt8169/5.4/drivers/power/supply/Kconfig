@@ -176,6 +176,16 @@ config BATTERY_MT6357
 	  battery information , It issues interrupt when trigger
 	  threshold is met.
 
+config BATTERY_MT6358
+	tristate "MT6358 fuel gauge support"
+	depends on MFD_MT6397
+	depends on NET
+	help
+	  Say Y to enable support for MT6358 battery driver.
+	  it measure battery current and temperature to provide
+	  battery information , It issues interrupt when trigger
+	  threshold is met.
+
 config BATTERY_MT6359P
 	tristate "MT6359P fuel gauge support"
 	depends on MFD_MT6397

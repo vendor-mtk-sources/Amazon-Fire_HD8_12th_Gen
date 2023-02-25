@@ -66,6 +66,7 @@
 #define RANGE_2G 0x00
 #define RANGE_4G 0x10
 #define RANGE_8G 0x20
+
 /**************************
  *** DEBUG
  **************************/
@@ -841,15 +842,18 @@ static void MC34XX_SetGain(void)
 		if (s_bResolution == MC34XX_RESOLUTION_LOW) {
 			gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = (1 << 8) / (1 << 2);
 		} else if (s_bResolution == MC34XX_RESOLUTION_HIGH) {
-			switch(RANGE_DEF) {
+			switch (RANGE_DEF) {
 			case RANGE_2G:
-				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = (1 << 16) / (1 << 2);
+				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z =
+									 (1 << 16) / (1 << 2);
 				break;
 			case RANGE_4G:
-				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = (1 << 16) / (1 << 3);
+				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z =
+									 (1 << 16) / (1 << 3);
 				break;
 			case RANGE_8G:
-				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = (1 << 16) / (1 << 4);
+				gsensor_gain.x = gsensor_gain.y = gsensor_gain.z =
+									 (1 << 16) / (1 << 4);
 				break;
 			}
 		}
@@ -1249,10 +1253,15 @@ static ssize_t regmap_show(struct device_driver *ddri, char *buf)
 	} else {
 		MC34XX_ReadRegMap(client, _baRegMap);
 
-		for (_bIndex = 0; _bIndex < MC34XX_REGMAP_LENGTH; _bIndex++)
-			_tLength +=
-				scnprintf((buf + _tLength), (PAGE_SIZE - _tLength),
-				"Reg[0x%02X]: 0x%02X\n", _bIndex, _baRegMap[_bIndex]);
+		for (_bIndex = 0; _bIndex < MC34XX_REGMAP_LENGTH; _bIndex++) {
+			_tLength += scnprintf(buf + _tLength, (PAGE_SIZE - _tLength),
+					"Reg[0x%2X]=0x%2X, ", _bIndex, _baRegMap[_bIndex]);
+
+			if (_bIndex % 5 == 4) {
+				_tLength += scnprintf(buf + _tLength, PAGE_SIZE - _tLength,
+						"\n");
+			}
+		}
 	}
 
 	return _tLength;

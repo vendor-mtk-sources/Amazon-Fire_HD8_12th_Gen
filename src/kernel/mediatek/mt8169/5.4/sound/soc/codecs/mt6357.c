@@ -604,7 +604,7 @@ static int mt6357_put_volsw(struct snd_kcontrol *kcontrol,
 	struct mt6357_priv *priv = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 			(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg;
+	unsigned int reg = 0;
 	int ret;
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);

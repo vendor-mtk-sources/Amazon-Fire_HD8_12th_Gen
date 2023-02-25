@@ -2618,7 +2618,7 @@ void mtk_crtc_start_trig_loop(struct drm_crtc *crtc)
 #endif
 #endif
 
-	const u16 reg_jump = CMDQ_THR_SPR_IDX1;
+	const u16 reg_jump = CMDQ_THR_SPR_IDX0;
 	const u16 var1 = CMDQ_CPR_DDR_USR_CNT;
 	const u16 var2 = 0;
 
@@ -2697,10 +2697,10 @@ void mtk_crtc_start_trig_loop(struct drm_crtc *crtc)
 #if IS_ENABLED(CONFIG_DRM_MEDIATEK_YOCTO)
 #ifdef CONFIG_DEBUG_FS
 		cmdq_pkt_read(cmdq_handle, NULL, comp_ovl->regs_pa + 0x270,
-				CMDQ_THR_SPR_IDX2);
+				CMDQ_THR_SPR_IDX0);
 		cmdq_pkt_write_reg_addr(cmdq_handle, cmdq_buf->pa_base +
 					DISP_SLOT_OVL_CRC,
-					CMDQ_THR_SPR_IDX2, U32_MAX);
+					CMDQ_THR_SPR_IDX0, U32_MAX);
 		cmdq_pkt_write(cmdq_handle, NULL,
 				comp_ovl->regs_pa + 0x10, 0x300, U32_MAX);
 		cmdq_pkt_write(cmdq_handle, NULL,

@@ -8,6 +8,7 @@
 #define __MTK_BATTERY_INTF_H__
 
 #include <linux/alarmtimer.h>
+#include <linux/atomic.h>
 #include <linux/extcon.h>
 #include <linux/hrtimer.h>
 #include <linux/nvmem-consumer.h>
@@ -864,6 +865,10 @@ struct mtk_battery {
 	unsigned int fg_update_flag;
 	struct hrtimer fg_hrtimer;
 	struct mutex ops_lock;
+	/* suspend_active:1, device are entering suspend mode.
+	 * suspend_active:0, device reusme.
+	 */
+	atomic_t suspend_active;
 
 	struct battery_data bs_data;
 	struct mtk_coulomb_service cs;

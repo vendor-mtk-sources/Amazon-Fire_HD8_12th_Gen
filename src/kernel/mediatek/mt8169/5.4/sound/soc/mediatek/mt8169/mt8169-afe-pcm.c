@@ -1522,7 +1522,8 @@ mt8169_fe_delay(struct snd_pcm_substream *substream,
 	hwptr_offset = bytes_to_frames(runtime, hw_ptr);
 
 	/* hw point offset by frames */
-	rptr_offset = (int)(hwptr_offset % period);
+	if (period != 0)
+		rptr_offset = (int)(hwptr_offset % period);
 	if (rptr_offset != 0)
 		delta = period - rptr_offset;
 
@@ -3776,7 +3777,7 @@ static int mt8169_afe_sram_get(struct mtk_base_afe *afe,
 			       void *user)
 {
 	int ret = 0;
-	unsigned char *virt_addr;
+	unsigned char *virt_addr = NULL;
 
 	ret = mtk_audio_sram_allocate(afe->sram, paddr, &virt_addr,
 				      size, user, 0, true);
